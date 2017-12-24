@@ -50,8 +50,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-/Project/
-/doc/
 /Documentation/
 /DSP_Lib/
 /SI4/
@@ -63,4 +61,6 @@ dkms.conf
 *.png
 *.gif
 *.css
-
+*.o
+*.d
+*.crf

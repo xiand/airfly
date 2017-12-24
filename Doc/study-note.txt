@@ -1,0 +1,42 @@
+mkd默认字体为 asci-c  使用si-4会出现乱码的现象
+Edit - 》configuration-》使用默认的Encode ASCI 
+否则出现printf不能输入中文的情况---串口使用printf出现乱码 很多时候是因为字体设置原因导致的
+在si-4上的同步可以  http://blog.csdn.net/timebomb/article/details/72778702
+4.0发布的真是激动人心，全新的界面，尤其是UTF-
+8等字符集的兼容，提升了一大截。但是导入我们的项目时，还是出现中文乱码问题，查询各大站介绍，主要分两种 
+1、GB2312或者GBK编码的，建议是用3.5；kidding me? 
+2、在4.0界面File->Reload as Encoding…->
+选择gb2312；但是这种只能对当前文件有效，如何一劳永逸呢？
+经过尝试，在Options->Preferences->Files最下面选择默认编码方式Default 
+Encoding即可，但是需要重建一下你的项目。
+如果你一个项目，有多种编码方式，GOD BLESS YOU!  
+D: last line of file ends without a newline  有时在keil中无法处理，在si中进行解决 
+
+
+工程引脚定义
+1、按键模块--PC13
+2、温度传感器---PB1
+3、led显示灯----PA5
+4、三路串口
+   串口1 TX-PA9、RX--PA10
+   串口2 TX-PA2、RX--PA3  -- 默认为调试串口
+   串口6 TX-PC6、RX--PC7
+  
+5、SD卡驱动使用硬件SPI1
+	PB3 -- JTDO-SWO, TIM2_CH2, SPI1_SCK/I2S1_CK, SPI3_SCK/I2S3_CK, USART1_RX, I2C2_SDA, 
+	PB4 -- JTRST, TIM3_CH1, SPI1_MISO, SPI3_MISO, I2S3ext_SD, I2C3_SDA, SDIO_D0,
+	PB5 -- TIM3_CH2, I2C1_SMBA, SPI1_MOSI/I2S1_SD, SPI3_MOSI/I2S3_SD, SDIO_D3, 
+
+1、综合实验（使用时钟芯片、温度传感器、fsfat文件系统、以及oled显示、sb读写，完成简单界面跳转，已经读写sd卡操作）
+进入是显示主页面
+    1、主页面显示当前温度、日期（2017/11/03）,当前时间09:37     //
+按键操作可以使用外设进行取代
+
+	2、长按键进入meum操作菜单                                   //
+时间可以使用模块外设或者是内部的RTC时钟进行管理
+
+	3、单击进入下一个菜单项										//设计菜单形式
+	4、双击返回主页面											
+	5、移植fsfat文件系统
+	6、使用文件系统完成对SD卡的读写
+	6、在一个页面中完成数据输入，读写一个文件，将数据存放进sd卡中。
