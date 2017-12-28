@@ -395,3 +395,126 @@ void bsp_SetTimOutPWM(GPIO_TypeDef *GPIOx,uint16_t gpio_pinx,TIM_TypeDef *TIMx,u
 	}
 }
 
+void bsp_SetTimForInt(TIM_TypeDef* TIMx, uint32_t _ulFreq, uint8_t _ucPreemptionPriority, uint8_t _ucSubPrority)
+{
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+	uint16_t usPeriod;
+	uint16_t usPrescaler;
+	uint32_t uiTIMxCLK;
+	NVIC_InitTypeDef NVIC_InitStructure;
+	uint8_t irq = 0;  //中断编号，定义在 stm32f4xx.h
+	
+	if((TIMx == TIM1)||(TIMx == TIM8)||(TIMx == TIM9)||(TIMx == TIM10)||(TIMx == TIM11))
+	{
+		RCC_APB2PeriphClockCmd(bsp_GetRccOfTim(TIMx),ENABLE);
+	}
+	else
+	{
+		RCC_APB1PeriphClockCmd(bsp_GetRccOfTim(TIMx),ENABLE);
+	}
+
+	if(_ulFreq == 0)
+	{
+		TIM_Cmd(TIMx,DISABLE);
+		return;
+	}
+	
+	/*-----------------------------------------------------------------------
+			system_stm32f4xx.c 文件中 void SetSysClock(void) 函数对时钟的配置如下：
+	
+			HCLK = SYSCLK / 1	  (AHB1Periph)
+			PCLK2 = HCLK / 2	  (APB2Periph)
+			PCLK1 = HCLK / 4	  (APB1Periph)
+			
+			上述是针对于目前市面上的STM32F407系列开发板，主频在168MHz
+			而目前自己使用的是 STM32F411RE 主频在100MHz 时钟配置为：
+			HCLK = SYSCLK / 1 (AHB1Periph)
+			PCLK2 = HCLK	  (APB2Periph)
+			PCLK1 = HCLK / 2  (APB1Periph)
+	
+			
+			因为APB1 prescaler != 1, 所以 APB1上的TIMxCLK = PCLK1 x 2 = SystemCoreClock; 该条件对于STM32F411不成立 STM32F411应该对于所有的定时器全部是SystemCoreClock时钟频率
+			因为APB2 prescaler == 1, 所以 APB2上的TIMxCLK = PCLK2 = SystemCoreClock;
+			APB1 定时器有 TIM2, TIM3 ,TIM4, TIM5, TIM6, TIM6, TIM12, TIM13,TIM14
+			APB2 定时器有 TIM1, TIM8 ,TIM9, TIM10, TIM11
+			由上述及数据手册上可得定时器内部时钟频率 SystemCoreClock
+	----------------------------------------------------------------------- */
+	if((TIMx == TIM1)||(TIMx == TIM8)||(TIMx == TIM9)||(TIMx == TIM10)||(TIMx == TIM11))
+	{
+		//对于在APB2总线上的定时器
+		uiTIMxCLK = SystemCoreClock;
+	}
+	else
+	{
+		//对于在APB1总线上的定时器
+		uiTIMxCLK = SystemCoreClock;
+	}
+
+	/*
+		如果不使用定时器的预分频器，定时器的可允许的最小的频率为
+		100 000 000 / 65535 = 1525Hz ，因为自动重载值最大为0xFFFF
+		如果频率要小于该值，则需要使用预分频器进行分频处理
+		下面的计算为粗略计算
+	*/
+	if(_ulFreq < 100)
+	{
+		usPrescaler = 10000 - 1;
+		usPeriod = (uiTIMxCLK/10000)/_ulFreq - 1;  //自动重装值
+	}
+	else if(_uiFreq < 3000)
+	{
+		usPrescaler = 100 - 1;
+		usPeriod = (uiTIMxCLK/100)/_ulFreq - 1;
+	}
+	else 
+	{
+		usPrescaler = 0;
+		usPeriod = (uiTIMxCLK)/_ulFreq - 1;  //自动重装值
+	}
+
+	TIM_TimeBaseStructure.TIM_Period = usPeriod;
+	TIM_TimeBaseStructure.TIM_Prescaler = usPrescaler;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseStructure.TIM_ClockDivision = 0x00;
+	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0x00;
+
+	TIM_TimeBaseInit(TIMx,&TIM_TimeBaseStructure);
+	TIM_ARRPreloadConfig(TIMx,ENABLE);
+
+	//使能中断
+	TIM_ITConfig(TIMx,TIM_IT_Update,ENABLE);
+	TIM_Cmd(TIMx,ENABLE);
+
+	if((TIMx == TIM1)||(TIMx == TIM10))
+		irq = TIM1_UP_TIM10_IRQn;
+	else if(TIMx == TIM2)
+		irq = TIM2_IRQn;
+	else if(TIMx == TIM3)
+		irq = TIM3_IRQn;
+	else if(TIMx == TIM4)
+		irq = TIM4_IRQn;
+	else if(TIMx == TIM5)
+		irq = TIM5_IRQn;
+	else if(TIMx == TIM6)
+		irq = TIM6_IRQn;
+	else if(TIMx == TIM7)
+		irq = TIM7_IRQn;
+	else if((TIMx == TIM8)||(TIMx == TIM13))
+		irq = TIM8_UP_TIM13_IRQn;
+	else if(TIMx == TIM9)
+		irq = TIM1_BRK_TIM9_IRQn;
+	else if(TIMx == TIM11)
+		irq = TIM1_TRG_COM_TIM11_IRQn;
+	else if(TIMx == TIM12)
+		irq = TIM8_BRK_TIM12_IRQn;
+	else if(TIMx == TIM12)
+		irq = TIM8_TRG_COM_TIM14_IRQn;
+
+	NVIC_InitStructure.NVIC_IRQChannel = irq;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = _ucPreemptionPriority;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = _ucSubPrority;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+
+	NVIC_Init(&NVIC_InitStructure);
+}
+
