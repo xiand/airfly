@@ -771,4 +771,42 @@ int fgetc(FILE * f)
 #endif
 }
 
+void bsp_iap_uart_init(void)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+	USART_InitTypeDef USART_InitStructure;
+	//使能引脚时钟
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2,ENABLE);
+
+	//引脚的重定向
+	GPIO_PinAFConfig(IAP_UART_RX_PORT, GPIO_PinSource2, GPIO_AF_USART2);
+	GPIO_PinAFConfig(IAP_UART_TX_PORT, GPIO_PinSource3, GPIO_AF_USART2);
+	
+	GPIO_InitStructure.GPIO_Pin = IAP_UART_TX_PIN;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_Init(IAP_UART_TX_PORT,&GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = IAP_UART_RX_PIN;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_Init(IAP_UART_RX_PORT,&GPIO_InitStructure);
+
+	USART_InitStructure.USART_BaudRate = 115200;
+	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+	USART_InitStructure.USART_StopBits = USART_StopBits_1;
+	USART_InitStructure.USART_Parity = USART_Parity_No;
+	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+	USART_InitStructure.USART_Mode = USART_Mode_Rx|USART_Mode_Tx;
+	USART_Init(IAP_UART,&USART_InitStructure);
+
+	USART_Cmd(IAP_UART, ENABLE);						//所有设置完成之后，使能串口
+
+	/* CPU的小缺陷：串口配置好，如果直接Send，则第1个字节发送不出去
+		如下语句解决第1个字节无法正确发送出去的问题 */
+	USART_ClearFlag(IAP_UART, USART_FLAG_TC); 		/* 清发送完成标志，Transmission Complete flag */
+}
+
 

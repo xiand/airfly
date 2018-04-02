@@ -13,11 +13,31 @@
 #define SPI_BAUD				SPI_BaudRatePrescaler_256
 
 uint8_t 		SD_Type = 0; //SD卡的类型	
+SPI_InitTypeDef SPI_InitStructure;
 
 
 //SPI时钟使能
 //#define ENABLE_SPI_RCC() RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI3, ENABLE)
 #define ENABLE_SPI_RCC()		RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE)
+
+
+static void SD_SPI_SetSpeed(uint8_t SpeedSet)
+{
+	SPI_InitStructure.SPI_BaudRatePrescaler = SpeedSet ;
+  	SPI_Init(SD_SPI, &SPI_InitStructure);
+	SPI_Cmd(SD_SPI,ENABLE);
+} 
+
+//设置spi低速模式
+void SD_SPI_SpeedLow(void)
+{
+ 	SD_SPI_SetSpeed(SPI_BaudRatePrescaler_256);//éè??μ?μí?ù?￡ê?	
+}
+//设置高速模式
+void SD_SPI_SpeedHigh(void)
+{
+ 	SD_SPI_SetSpeed(SPI_BaudRatePrescaler_2);//éè??μ????ù?￡ê?	
+}
 
 /*******************************************************************************
 * Function Name  : spiGpioInit
@@ -44,7 +64,7 @@ static void spiGpioInit(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
@@ -96,8 +116,6 @@ static void spiGpioInit(void)
 *******************************************************************************/
 static void spiHardInit(void)
 {
-	SPI_InitTypeDef SPI_InitStructure;
-
 	ENABLE_SPI_RCC();
 
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex; //数据方向：两线全双工
@@ -325,8 +343,6 @@ uint8_t SD_Init(void)
 	if (retry == 200)
 		return 1; //超时返回1	
 
-	printf("enter the SD_INIT3\r\n");
-
 	//-----------------SD卡复位到idle结束-----------------	 
 	//获取卡片的SD版本信息
 	r1					= sd_SendCommandNoDeassert(CMD8, 0x1aa, 0x87);
@@ -353,7 +369,7 @@ uint8_t SD_Init(void)
 		do 
 		{
 			//先发CMD55，应返回0x01；否则出错
-			r1					= sd_SendCommand(CMD55, 0, 0);
+			r1					= sd_SendCommand(CMD55, 0, 1);
 
 			if (r1 != 0x01)
 				return r1;
@@ -414,7 +430,6 @@ uint8_t SD_Init(void)
 		buff[1] 			= sd_ReadWriteByte(0xFF); //should be 0x00
 		buff[2] 			= sd_ReadWriteByte(0xFF); //should be 0x01
 		buff[3] 			= sd_ReadWriteByte(0xFF); //should be 0xAA
-		printf("buff[0] = %x, buf[1] = %x,buf[2] = %x,buff[3] = %x\r\n", buff[0], buff[1], buff[2], buff[3]);
 		SD_SPI_CS_DISENABLE();
 		sd_ReadWriteByte(0xFF); 					//the next 8 clocks			 
 
@@ -427,17 +442,18 @@ uint8_t SD_Init(void)
 			do 
 			{
 				retry++;
-				r1					= sd_SendCommand(CMD55, 0, 0);
+				sd_SendCommand(CMD55, 0, 1);
 
-				if (r1 != 0x01)
-				{
-					return r1;
-				}
+//				if (r1 != 0x01)
+//				{
+//					return r1;
+//				}
 
 				r1					= sd_SendCommand(ACMD41, 0x40000000, 1);
 
-				if (retry > 400)
+				if (retry > 0XFFFE)
 				{
+					printf("sd init ret = %d  retry = %x \r\n",r1,retry);
 					return r1; //超时则返回r1状态 
 				}
 			}
@@ -458,7 +474,6 @@ uint8_t SD_Init(void)
 			//OCR接收完成，片选置高
 			SD_SPI_CS_DISENABLE();
 			sd_ReadWriteByte(0xFF);
-			printf("enter the SD_INITsssssss\r\n");
 
 			//检查接收到的OCR中的bit30位（CCS），确定其为SD2.0还是SDHC
 			//如果CCS=1：SDHC   CCS=0：SD2.0
@@ -467,13 +482,13 @@ uint8_t SD_Init(void)
 			else 
 				SD_Type = SD_TYPE_V2;
 
-			printf("the sd_type = %d\r\n", SD_Type);
-
 			//-----------鉴别SD2.0卡版本结束----------- 
 			//设置SPI为高速模式
-			//SPI_SetSpeed(1);	
+			////设置高速模式
+			//SD_SPI_SpeedHigh();	
 		}
 	}
+	printf("sd init ret = %d\r\n",r1);
 	return r1;
 }
 
@@ -548,10 +563,10 @@ uint8_t sd_ReceiveData(uint8_t * data, uint16_t len, uint8_t release)
 *				   1：TIME_OUT
 *				   other：错误信息
 *******************************************************************************/
-uint8_t sd_GetCID(uint8_t * cid_data)
+uint8_t sd_GetCID(SD_CID * SD_cid)
 {
 	uint8_t r1;
-
+	uint8_t CID_Tab[16] = {0};
 	//发CMD10命令，读CID
 	r1					= sd_SendCommand(CMD10, 0, 0xFF);
 
@@ -559,8 +574,60 @@ uint8_t sd_GetCID(uint8_t * cid_data)
 		return r1; //没返回正确应答，则退出，报错    
 
 	//接收16个字节的数据
-	sd_ReceiveData(cid_data, 16, RELEASE);
-	return 0;
+	sd_ReceiveData(CID_Tab, 16, RELEASE);
+
+	/*!< Byte 0 */
+	SD_cid->ManufacturerID = CID_Tab[0];
+
+	/*!< Byte 1 */
+	SD_cid->OEM_AppliID = CID_Tab[1] << 8;
+
+	/*!< Byte 2 */
+	SD_cid->OEM_AppliID |= CID_Tab[2];
+
+	/*!< Byte 3 */
+	SD_cid->ProdName1	= CID_Tab[3] << 24;
+
+	/*!< Byte 4 */
+	SD_cid->ProdName1	|= CID_Tab[4] << 16;
+
+	/*!< Byte 5 */
+	SD_cid->ProdName1	|= CID_Tab[5] << 8;
+
+	/*!< Byte 6 */
+	SD_cid->ProdName1	|= CID_Tab[6];
+
+	/*!< Byte 7 */
+	SD_cid->ProdName2	= CID_Tab[7];
+
+	/*!< Byte 8 */
+	SD_cid->ProdRev 	= CID_Tab[8];
+
+	/*!< Byte 9 */
+	SD_cid->ProdSN		= CID_Tab[9] << 24;
+
+	/*!< Byte 10 */
+	SD_cid->ProdSN		|= CID_Tab[10] << 16;
+
+	/*!< Byte 11 */
+	SD_cid->ProdSN		|= CID_Tab[11] << 8;
+
+	/*!< Byte 12 */
+	SD_cid->ProdSN		|= CID_Tab[12];
+
+	/*!< Byte 13 */
+	SD_cid->Reserved1	|= (CID_Tab[13] &0xF0) >> 4;
+	SD_cid->ManufactDate = (CID_Tab[13] &0x0F) << 8;
+
+	/*!< Byte 14 */
+	SD_cid->ManufactDate |= CID_Tab[14];
+
+	/*!< Byte 15 */
+	SD_cid->CID_CRC 	= (CID_Tab[15] &0xFE) >> 1;
+	SD_cid->Reserved2	= 1;
+
+	/*!< Return the reponse */
+	return r1;
 }
 
 
@@ -574,10 +641,10 @@ uint8_t sd_GetCID(uint8_t * cid_data)
 *				   1：TIME_OUT
 *				   other：错误信息
 *******************************************************************************/
-uint8_t sd_GetCSD(uint8_t * csd_data)
+uint8_t sd_GetCSD(SD_CSD * SD_csd,uint8_t *CSD_Tab)
 {
 	uint8_t r1;
-
+	//uint8_t CSD_Tab[16] = {0};
 	//发CMD9命令，读CSD
 	r1					= sd_SendCommand(CMD9, 0, 0xFF);
 
@@ -585,9 +652,102 @@ uint8_t sd_GetCSD(uint8_t * csd_data)
 		return r1; //没返回正确应答，则退出，报错  
 
 	//接收16个字节的数据
-	sd_ReceiveData(csd_data, 16, RELEASE);
+	sd_ReceiveData(CSD_Tab, 16, RELEASE);
 
-	return 0;
+	/*!< Byte 0 */
+	SD_csd->CSDStruct	= (CSD_Tab[0] &0xC0) >> 6;
+	SD_csd->SysSpecVersion = (CSD_Tab[0] &0x3C) >> 2;
+	SD_csd->Reserved1	= CSD_Tab[0] &0x03;
+
+	/*!< Byte 1 */
+	SD_csd->TAAC		= CSD_Tab[1];
+
+	/*!< Byte 2 */
+	SD_csd->NSAC		= CSD_Tab[2];
+
+	/*!< Byte 3 */
+	SD_csd->MaxBusClkFrec = CSD_Tab[3];
+
+	/*!< Byte 4 */
+	SD_csd->CardComdClasses = CSD_Tab[4] << 4;
+
+	/*!< Byte 5 */
+	SD_csd->CardComdClasses |= (CSD_Tab[5] &0xF0) >> 4;
+	SD_csd->RdBlockLen	= CSD_Tab[5] &0x0F;
+
+	/*!< Byte 6 */
+	SD_csd->PartBlockRead = (CSD_Tab[6] &0x80) >> 7;
+	SD_csd->WrBlockMisalign = (CSD_Tab[6] &0x40) >> 6;
+	SD_csd->RdBlockMisalign = (CSD_Tab[6] &0x20) >> 5;
+	SD_csd->DSRImpl 	= (CSD_Tab[6] &0x10) >> 4;
+	SD_csd->Reserved2	= 0;						/*!< Reserved */
+	SD_csd->DeviceSize	= (CSD_Tab[6] &0x03) << 10;
+
+	/*!< Byte 7 */
+	SD_csd->DeviceSize	|= (CSD_Tab[7]) << 2;
+
+	/*!< Byte 8 */
+	SD_csd->DeviceSize	|= (CSD_Tab[8] &0xC0) >> 6;
+
+	SD_csd->MaxRdCurrentVDDMin = (CSD_Tab[8] &0x38) >> 3;
+	SD_csd->MaxRdCurrentVDDMax = (CSD_Tab[8] &0x07);
+
+	/*!< Byte 9 */
+	SD_csd->MaxWrCurrentVDDMin = (CSD_Tab[9] &0xE0) >> 5;
+	SD_csd->MaxWrCurrentVDDMax = (CSD_Tab[9] &0x1C) >> 2;
+	SD_csd->DeviceSizeMul = (CSD_Tab[9] &0x03) << 1;
+
+	/*!< Byte 10 */
+	SD_csd->DeviceSizeMul |= (CSD_Tab[10] &0x80) >> 7;
+
+	SD_csd->EraseGrSize = (CSD_Tab[10] &0x40) >> 6;
+	SD_csd->EraseGrMul	= (CSD_Tab[10] &0x3F) << 1;
+
+	/*!< Byte 11 */
+	SD_csd->EraseGrMul	|= (CSD_Tab[11] &0x80) >> 7;
+	SD_csd->WrProtectGrSize = (CSD_Tab[11] &0x7F);
+
+	/*!< Byte 12 */
+	SD_csd->WrProtectGrEnable = (CSD_Tab[12] &0x80) >> 7;
+	SD_csd->ManDeflECC	= (CSD_Tab[12] &0x60) >> 5;
+	SD_csd->WrSpeedFact = (CSD_Tab[12] &0x1C) >> 2;
+	SD_csd->MaxWrBlockLen = (CSD_Tab[12] &0x03) << 2;
+
+	/*!< Byte 13 */
+	SD_csd->MaxWrBlockLen |= (CSD_Tab[13] &0xC0) >> 6;
+	SD_csd->WriteBlockPaPartial = (CSD_Tab[13] &0x20) >> 5;
+	SD_csd->Reserved3	= 0;
+	SD_csd->ContentProtectAppli = (CSD_Tab[13] &0x01);
+
+	/*!< Byte 14 */
+	SD_csd->FileFormatGrouop = (CSD_Tab[14] &0x80) >> 7;
+	SD_csd->CopyFlag	= (CSD_Tab[14] &0x40) >> 6;
+	SD_csd->PermWrProtect = (CSD_Tab[14] &0x20) >> 5;
+	SD_csd->TempWrProtect = (CSD_Tab[14] &0x10) >> 4;
+	SD_csd->FileFormat	= (CSD_Tab[14] &0x0C) >> 2;
+	SD_csd->ECC 		= (CSD_Tab[14] &0x03);
+
+	/*!< Byte 15 */
+	SD_csd->CSD_CRC 	= (CSD_Tab[15] &0xFE) >> 1;
+	SD_csd->Reserved4	= 1;
+
+	/*!< Return the reponse */
+	return r1;
+}
+
+uint8_t SD_GetCardInfo(SD_CardInfo * cardinfo)
+{
+	SD_Error status 	= 0;
+	uint8_t ucData[16];
+	status				= sd_GetCSD(& (cardinfo->SD_csd),ucData);
+	status				= sd_GetCID(& (cardinfo->SD_cid));
+	cardinfo->CardCapacity = (cardinfo->SD_csd.DeviceSize + 1);
+	cardinfo->CardCapacity *= (1 << (cardinfo->SD_csd.DeviceSizeMul + 2));
+	cardinfo->CardBlockSize = 1 << (cardinfo->SD_csd.RdBlockLen);
+	cardinfo->CardCapacity *= cardinfo->CardBlockSize;
+
+	/*!< Returns the reponse */
+	return status;
 }
 
 
@@ -606,9 +766,9 @@ uint32_t SD_GetCapacity(void)
 	uint8_t r1;
 	uint16_t i;
 	uint16_t temp;
-
+	SD_CSD SD_csd = {0};
 	//取CSD信息，如果期间出错，返回0
-	if (sd_GetCSD(csd) != 0)
+	if (sd_GetCSD(&SD_csd,csd) != 0)
 		return 0;
 
 	//如果为SDHC卡，按照下面方式计算
@@ -689,11 +849,10 @@ uint8_t sd_ReadSingleBlock(uint8_t * buffer,u32 sector,  uint32_t len)
 
 	if (r1 != 0x00)
 	{
-			printf("r1 ssss = %d\r\n",r1);
 		  return r1;
 	}
 	r1					= sd_ReceiveData(buffer, len, RELEASE);
-	printf("r1 ggggg  = %d\r\n",r1);
+	
 	if (r1 != 0)
 		return r1; //读数据出错！
 
@@ -730,7 +889,6 @@ uint8_t SD_WriteSingleBlock(u32 sector, uint8_t * data, uint32_t uiSize)
 	
 	if (r1 != 0x00)
 	{
-		printf("the r1 xxxx  = %d\r\n",r1);
 		return r1; //应答不正确，直接返回
 	}
 
@@ -755,16 +913,27 @@ uint8_t SD_WriteSingleBlock(u32 sector, uint8_t * data, uint32_t uiSize)
 	sd_ReadWriteByte(0xff);
 	sd_ReadWriteByte(0xff);
 
+	retry = 0;
 	//等待SD卡应答
-	r1					= sd_ReadWriteByte(0xff);
-
-	if ((r1 & 0x1F) != 0x05)
+	while(1)
 	{
-		SD_SPI_CS_DISENABLE();
-		printf("the r1 xxbbbbbb  = %d\r\n",r1);
-		//return r1;
+		r1					= sd_ReadWriteByte(0xff);
+		if((r1 & 0x1F) == 0x05)
+		{
+			break;
+		}
+		else if ((retry == 0xfffe))
+		{
+			SD_SPI_CS_DISENABLE();
+			printf("the r1 xxbbbbbb  = %d\r\n",r1);
+			return r1;
+		}
+		else
+		{
+			retry++;
+		}
 	}
-
+	
 	//等待操作完成
 	retry				= 0;
 

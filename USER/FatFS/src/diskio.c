@@ -8,7 +8,7 @@
 /*-----------------------------------------------------------------------*/
 
 #include "diskio.h"			/* FatFs lower layer API */
-#include "stm32_eval_spi_sd.h"	/* SD卡底层驱动 */
+#include "bsp_spiSD.h"	/* SD卡底层驱动 */
 
 #define SECTOR_SIZE		512
 
@@ -22,7 +22,12 @@ DSTATUS SD_disk_initialize(void)
 	SD_Error Status;
 
 	Status = SD_Init();
-
+	if(Status)//STM32 SPI的bug,在sd卡操作失败的时候如果不执行下面的语句,可能导致SPI读写异常
+	{
+		SD_SPI_SpeedLow();
+		sd_ReadWriteByte(0xff);//提供额外的8个时钟
+		SD_SPI_SpeedHigh();
+	}
 	if (Status == SD_OK)
 	{
 		return RES_OK;
@@ -95,17 +100,23 @@ DRESULT disk_read (
 
 			if (count == 1)
 			{
-				Status = SD_ReadBlock(buff, sector << 9 , SECTOR_SIZE);
+				Status = sd_ReadSingleBlock(buff, sector << 9 , SECTOR_SIZE);
+				if(Status)//STM32 SPI的bug,在sd卡操作失败的时候如果不执行下面的语句,可能导致SPI读写异常
+				{
+					SD_SPI_SpeedLow();
+					sd_ReadWriteByte(0xff);//提供额外的8个时钟
+					SD_SPI_SpeedHigh();
+				}
 			}
 			else
 			{
-				Status = SD_ReadMultiBlocks(buff, sector << 9 , SECTOR_SIZE, count);
+				Status = SD_ReadMultiBlock(buff, sector << 9 , SECTOR_SIZE, count);
 			}
 			if (Status != SD_OK)
 			{
 				return RES_ERROR;
 			}
-#if 0
+
 		#ifdef SD_DMA_MODE
 			/* SDIO工作在DMA模式，需要检查操作DMA传输是否完成 */
 			Status = SD_WaitReadOperation();
@@ -116,7 +127,7 @@ DRESULT disk_read (
 
 			while(SD_GetStatus() != SD_TRANSFER_OK);
 		#endif
-#endif
+
 			return RES_OK;
 		}
 
@@ -150,13 +161,13 @@ DRESULT disk_write (
 
 			if (count == 1)
 			{
-				Status = SD_WriteBlock((uint8_t *)buff,sector << 9 , SECTOR_SIZE);
+				Status = SD_WriteSingleBlock( sector << 9 ,(uint8_t *)buff, SECTOR_SIZE);
 
 				if (Status != SD_OK)
 				{
 					return RES_ERROR;
 				}
-#if 0
+
 			#ifdef SD_DMA_MODE
 				/* SDIO工作在DMA模式，需要检查操作DMA传输是否完成 */
 				Status = SD_WaitReadOperation();
@@ -166,20 +177,19 @@ DRESULT disk_write (
 				}
 				while(SD_GetStatus() != SD_TRANSFER_OK);
 			#endif
-#endif			
 				return RES_OK;
 			}
 			else
 			{
 				/* 此处存在疑问： 扇区个数如果写 count ，将导致最后1个block无法写入 */
 				//Status = SD_WriteMultiBlocks((uint8_t *)buff, sector << 9 ,SECTOR_SIZE, count);
-				Status = SD_WriteMultiBlocks((uint8_t *)buff, sector << 9 , SECTOR_SIZE, count + 1);
+				Status = SD_WriteMultiBlock(sector << 9 ,(uint8_t *)buff, SECTOR_SIZE, count + 1);
 
 				if (Status != SD_OK)
 				{
 					return RES_ERROR;
 				}
-#if 0
+
 			#ifdef SD_DMA_MODE
 				/* SDIO工作在DMA模式，需要检查操作DMA传输是否完成 */
 				Status = SD_WaitReadOperation();
@@ -189,7 +199,7 @@ DRESULT disk_write (
 				}
 				while(SD_GetStatus() != SD_TRANSFER_OK);
 			#endif
-#endif
+
 
 				return RES_OK;
 			}
@@ -216,17 +226,49 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-	DRESULT res;
-
+	
 	switch (pdrv) {
-	case FS_SD :
-		res = RES_OK;
-		return res;
-
-	case FS_NAND :
-		res = RES_OK;
-		return res;
+		
+//	case FS_SPI_FLASH :
+//		switch(cmd)
+//		{
+//			/* SPI Flash不需要同步 */
+//			case CTRL_SYNC :  
+//				return RES_OK;
+//			
+//			/* 返回SPI Flash扇区大小 */
+//			case GET_SECTOR_SIZE:
+//				*((WORD *)buff) = 4096;  
+//				return RES_OK;
+//			
+//			/* 返回SPI Flash扇区数 */
+//			case GET_SECTOR_COUNT:
+//				*((DWORD *)buff) = 2048;    
+//				return RES_OK;
+//			
+//			/* 下面这两项暂时未用 */
+//			case GET_BLOCK_SIZE:   
+//				return RES_OK;
+//			
+//			case CTRL_ERASE_SECTOR:
+//				return RES_OK;       
+//		}
+		
+	 case FS_SD :
+		{	
+		   switch(cmd)
+		   {
+			/* 返回SD扇区大小 */
+			case GET_SECTOR_SIZE:
+				*((WORD *)buff) = 512;  
+				return RES_OK;
+			
+			default:
+				return RES_OK;    
+		   }  
+	   }		   
 	}
+	
 	return RES_PARERR;
 }
 #endif

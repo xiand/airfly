@@ -5,7 +5,7 @@
 
 
 #include "../ff.h"
-#include <stdlib.h>
+
 
 #if _FS_REENTRANT
 /*------------------------------------------------------------------------*/
@@ -24,8 +24,8 @@ int ff_cre_syncobj (	/* 1:Function succeeded, 0:Could not create the sync object
 	int ret;
 
 
-//	*sobj = CreateMutex(NULL, FALSE, NULL);		/* Win32 */
-//	ret = (int)(*sobj != INVALID_HANDLE_VALUE);
+	*sobj = CreateMutex(NULL, FALSE, NULL);		/* Win32 */
+	ret = (int)(*sobj != INVALID_HANDLE_VALUE);
 
 //	*sobj = SyncObjects[vol];			/* uITRON (give a static sync object) */
 //	ret = 1;							/* The initial value of the semaphore must be 1. */
@@ -56,7 +56,7 @@ int ff_del_syncobj (	/* 1:Function succeeded, 0:Could not delete due to any erro
 	int ret;
 
 
-//	ret = CloseHandle(sobj);	/* Win32 */
+	ret = CloseHandle(sobj);	/* Win32 */
 
 //	ret = 1;					/* uITRON (nothing to do) */
 
@@ -84,7 +84,7 @@ int ff_req_grant (	/* 1:Got a grant to access the volume, 0:Could not get a gran
 {
 	int ret;
 
-//	ret = (int)(WaitForSingleObject(sobj, _FS_TIMEOUT) == WAIT_OBJECT_0);	/* Win32 */
+	ret = (int)(WaitForSingleObject(sobj, _FS_TIMEOUT) == WAIT_OBJECT_0);	/* Win32 */
 
 //	ret = (int)(wai_sem(sobj) == E_OK);			/* uITRON */
 
@@ -108,7 +108,7 @@ void ff_rel_grant (
 	_SYNC_t sobj	/* Sync object to be signaled */
 )
 {
-//	ReleaseMutex(sobj);		/* Win32 */
+	ReleaseMutex(sobj);		/* Win32 */
 
 //	sig_sem(sobj);			/* uITRON */
 

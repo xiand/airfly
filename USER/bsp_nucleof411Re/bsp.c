@@ -2,13 +2,9 @@
 
 void bsp_Init(void)
 {
-	uint8_t i = 0;
-	bsp_InitKey();
-	bsp_InitTimer();
+//	bsp_InitKey();
+//	bsp_InitTimer();
 	bsp_InitUart();
-	//OLED_Init();
-	i = SD_Init();
-	printf("the ret = %d\r\n",i);
 	//bsp_myInitDs18b20();							
 	//bsp_dwtInit();
 	//bsp_RtcInit();

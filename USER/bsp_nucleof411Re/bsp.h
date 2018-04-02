@@ -39,9 +39,9 @@
 
 #include "bsp_myDs18b20.h"
 #include "bsp_OledShow.h"
-//#include "bsp_spiSD.h"
 #include "bsp_rtc.h"
-#include "stm32_eval_spi_sd.h"
+#include "bsp_spiSD.h"
+//#include "stm32_eval_spi_sd.h"
 #include "diskio.h"
 
 void bsp_Init(void);

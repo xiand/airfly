@@ -41,6 +41,12 @@ typedef enum Baudrate{
 #define BSP_USART3_TX_PORT GPIOC
 #define BSP_USART3_TX_PIN	GPIO_Pin_6
 
+#define IAP_UART USART2
+#define IAP_UART_RX_PORT GPIOA
+#define IAP_UART_RX_PIN  GPIO_Pin_3
+#define IAP_UART_TX_PORT GPIOA
+#define IAP_UART_TX_PIN  GPIO_Pin_2
+#define EVAL_COM1 USART2
 /* 定义端口号 */
 typedef enum
 {
@@ -98,5 +104,7 @@ uint8_t comGetChar(COM_PORT_E ucPort, uint8_t *pByte);
 void comClearTxFifo(COM_PORT_E ucPort);
 void comClearRxFifo(COM_PORT_E ucPort);
 
+//该函数用于串口的IAP操作
+void bsp_iap_uart_init(void);
 
 #endif

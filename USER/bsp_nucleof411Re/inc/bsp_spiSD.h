@@ -247,8 +247,10 @@ typedef struct
 #define CMD59					59		//命令59，使能/禁止CRC，应返回0x00	 (应答格式：R1)
 
 uint8_t SD_Init(void);
-uint8_t sd_GetCSD(uint8_t * csd_data);
-uint8_t sd_GetCID(uint8_t * cid_data);
+uint8_t sd_GetCSD(SD_CSD * SD_csd,uint8_t *CSD_Tab);
+uint8_t sd_GetCID(SD_CID * SD_cid);
+uint8_t SD_GetCardInfo(SD_CardInfo * cardinfo);
+
 void bsp_sdInit(void);
 uint8_t sd_ReadWriteByte(uint8_t ucData);
 
@@ -261,7 +263,12 @@ uint8_t SD_WriteSingleBlock(u32 sector, uint8_t * data, uint32_t uiSize);
 uint8_t SD_WriteMultiBlock(u32 sector, const uint8_t * data, uint32_t uiSize,uint8_t count);
 uint8_t SD_Read_Bytes(unsigned long address, unsigned char * buf, unsigned int offset, unsigned int bytes);
 
+//设置spi低速模式
+void SD_SPI_SpeedLow(void);
+//设置高速模式
+void SD_SPI_SpeedHigh(void);
 
+uint8_t sd_ReadWriteByte(uint8_t ucData);
 
 
 
