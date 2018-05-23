@@ -18,7 +18,7 @@ void bsp_SetTimOutPWM(GPIO_TypeDef *GPIOx,uint16_t gpio_pinx,TIM_TypeDef *TIMx,u
 void bsp_StopPwm(TIM_TypeDef *TIMx);
 
 
-void bsp_SetTIMforInt(TIM_TypeDef* TIMx, uint32_t _ulFreq, uint8_t _PreemptionPriority, uint8_t _SubPriority);
+void bsp_SetTimForInt(TIM_TypeDef* TIMx, uint32_t _ulFreq, uint8_t _ucPreemptionPriority, uint8_t _ucSubPrority);
 
 /**********************************************************************
 * @Fuctionname   : bsp_SetTimCaptureFunction

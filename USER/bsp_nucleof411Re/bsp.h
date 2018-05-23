@@ -42,7 +42,8 @@
 #include "bsp_rtc.h"
 #include "bsp_spiSD.h"
 //#include "stm32_eval_spi_sd.h"
-#include "diskio.h"
+#include "bsp_tim_pwm.h"
+//#include "bsp_sdio_sd.h"
 
 void bsp_Init(void);
 void bsp_Idle(void);

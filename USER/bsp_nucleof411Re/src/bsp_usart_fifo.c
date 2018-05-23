@@ -407,7 +407,7 @@ static void UartHardInit(void)
 	USART_ClearFlag(USART2, USART_FLAG_TC); 		/* 清发送完成标志，Transmission Complete flag */
 #endif
 
-#if USE_UART6_FIFO_EN
+#if USE_UART6_FIFO_EN  == 1
 
 	//开启GPIO时钟
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
@@ -466,7 +466,7 @@ static void ConfigUartNVIC(void)
 {
 	NVIC_InitTypeDef NVIC_InitStruct;
 
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
+	//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
 
 #if USE_UART1_FIFO_EN				== 1
 	NVIC_InitStruct.NVIC_IRQChannel = USART1_IRQn;

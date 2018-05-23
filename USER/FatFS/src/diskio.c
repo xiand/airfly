@@ -1,120 +1,106 @@
-/*-----------------------------------------------------------------------*/
-/* Low level disk I/O module skeleton for FatFs     (C)ChaN, 2013        */
-/*-----------------------------------------------------------------------*/
-/* If a working storage control module is available, it should be        */
-/* attached to the FatFs via a glue function rather than modifying it.   */
-/* This is an example of glue functions to attach various exsisting      */
-/* storage control module to the FatFs module with a defined API.        */
-/*-----------------------------------------------------------------------*/
+/*
+*********************************************************************************************************
+*
+*	模块名称 : fatfs和sd卡的接口文件
+*	文件名称 : diskio.c
+*	版    本 : V1.0
+*	说    明 : 支持SD卡
+*
+*	修改记录 :
+*		版本号   日期         作者           说明
+*       v1.0    2014-06-19   Eric2013        首发
+*
+*	Copyright (C), 2014-2015, 安富莱电子 www.armfly.com
+*
+*********************************************************************************************************
+*/
+#include "diskio.h"		    /* FatFs lower layer API */
+#include "bsp.h"
 
-#include "diskio.h"			/* FatFs lower layer API */
-#include "bsp_spiSD.h"	/* SD卡底层驱动 */
 
 #define SECTOR_SIZE		512
-
-/*-----------------------------------------------------------------------*/
-/* Inidialize a Drive                                                    */
-/*-----------------------------------------------------------------------*/
-
-DSTATUS SD_disk_initialize(void)
-{
-	SD_CardInfo SDCardInfo;
-	SD_Error Status;
-
-	Status = SD_Init();
-	if(Status)//STM32 SPI的bug,在sd卡操作失败的时候如果不执行下面的语句,可能导致SPI读写异常
-	{
-		SD_SPI_SpeedLow();
-		sd_ReadWriteByte(0xff);//提供额外的8个时钟
-		SD_SPI_SpeedHigh();
-	}
-	if (Status == SD_OK)
-	{
-		return RES_OK;
-	}
-	else
-	{
-		return STA_NODISK;
-	}
-}
-
+/*-------------------------------------------------------------------------------------------*/
+/* Inidialize a Drive                                                                        */
+/*-------------------------------------------------------------------------------------------*/
 DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive nmuber (0..) */
 )
 {
-	DSTATUS stat;
+	DSTATUS stat = STA_NOINIT;
 
-	switch (pdrv) {
-	case FS_SD :
-		stat = SD_disk_initialize();
-		return stat;
+	switch (pdrv)
+	{
+		case FS_SD :		/* SD卡 */
+			if (SD_Init() == SD_OK)
+			{
+				stat = RES_OK;
+			}
+			else
+			{
+				stat = STA_NODISK;
+			}
+			break;
 
-	case FS_NAND :
-		stat = STA_NOINIT;
-		return stat;
+		default :
+			break;
 	}
-	return STA_NOINIT;
+
+	return stat;
 }
 
-
-
-/*-----------------------------------------------------------------------*/
-/* Get Disk Status                                                       */
-/*-----------------------------------------------------------------------*/
-
+/*-------------------------------------------------------------------------------------------*/
+/* Get Disk Status                                                                           */
+/*-------------------------------------------------------------------------------------------*/
 DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive nmuber (0..) */
 )
 {
-	DSTATUS stat;
+	DSTATUS stat = STA_NOINIT;
 
 	switch (pdrv)
 	{
-	case FS_SD :
-		stat = 0;
-		return stat;
+		case FS_SD :
+			stat = 0;
+			break;
 
-	case FS_NAND :
-		return stat;
+		default:
+			stat = 0;
+			break;
 	}
-	return STA_NOINIT;
+	return stat;
 }
 
-/*-----------------------------------------------------------------------*/
-/* Read Sector(s)                                                        */
-/*-----------------------------------------------------------------------*/
-
+/*-------------------------------------------------------------------------------------------*/
+/* Read Sector(s)                                                                            */
+/*-------------------------------------------------------------------------------------------*/
 DRESULT disk_read (
 	BYTE pdrv,		/* Physical drive nmuber (0..) */
 	BYTE *buff,		/* Data buffer to store read data */
 	DWORD sector,	/* Sector address (LBA) */
-	BYTE count		/* Number of sectors to read (1..128) */
+	UINT count		/* Number of sectors to read (1..128) */
 )
 {
-	DRESULT res;
+	DRESULT res = RES_OK;
 
-	switch (pdrv) {
-	case FS_SD :
+	switch (pdrv)
+	{
+		case FS_SD :
 		{
 			SD_Error Status = SD_OK;
 
 			if (count == 1)
 			{
 				Status = sd_ReadSingleBlock(buff, sector << 9 , SECTOR_SIZE);
-				if(Status)//STM32 SPI的bug,在sd卡操作失败的时候如果不执行下面的语句,可能导致SPI读写异常
-				{
-					SD_SPI_SpeedLow();
-					sd_ReadWriteByte(0xff);//提供额外的8个时钟
-					SD_SPI_SpeedHigh();
-				}
 			}
 			else
 			{
 				Status = SD_ReadMultiBlock(buff, sector << 9 , SECTOR_SIZE, count);
 			}
+			
 			if (Status != SD_OK)
 			{
-				return RES_ERROR;
+				res = RES_ERROR;
+				break;
 			}
 
 		#ifdef SD_DMA_MODE
@@ -122,103 +108,88 @@ DRESULT disk_read (
 			Status = SD_WaitReadOperation();
 			if (Status != SD_OK)
 			{
-				return RES_ERROR;
+				res = RES_ERROR;
+				break;
 			}
 
 			while(SD_GetStatus() != SD_TRANSFER_OK);
 		#endif
 
-			return RES_OK;
+			res = RES_OK;
+			break;
 		}
-
-	case FS_NAND :
-		res = RES_OK;
-		return res;
-
+		
+		default:
+			res = RES_PARERR;
+			break;
 	}
-	return RES_PARERR;
+	
+	return res;
 }
 
-
-
-/*-----------------------------------------------------------------------*/
-/* Write Sector(s)                                                       */
-/*-----------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------------*/
+/* Write Sector(s)                                                                           */
+/*-------------------------------------------------------------------------------------------*/
 #if _USE_WRITE
 DRESULT disk_write (
 	BYTE pdrv,			/* Physical drive nmuber (0..) */
 	const BYTE *buff,	/* Data to be written */
 	DWORD sector,		/* Sector address (LBA) */
-	BYTE count			/* Number of sectors to write (1..128) */
+	UINT count			/* Number of sectors to write (1..128) */
 )
 {
-	DRESULT res;
+	DRESULT res = RES_OK;
 
-	switch (pdrv) {
-	case FS_SD :
+	switch (pdrv)
+	{
+		case FS_SD :
 		{
 			SD_Error Status = SD_OK;
 
 			if (count == 1)
 			{
-				Status = SD_WriteSingleBlock( sector << 9 ,(uint8_t *)buff, SECTOR_SIZE);
-
-				if (Status != SD_OK)
-				{
-					return RES_ERROR;
-				}
-
-			#ifdef SD_DMA_MODE
-				/* SDIO工作在DMA模式，需要检查操作DMA传输是否完成 */
-				Status = SD_WaitReadOperation();
-				if (Status != SD_OK)
-				{
-					return RES_ERROR;
-				}
-				while(SD_GetStatus() != SD_TRANSFER_OK);
-			#endif
-				return RES_OK;
+				Status = SD_WriteSingleBlock((uint8_t *)buff, sector << 9 ,SECTOR_SIZE);
 			}
 			else
 			{
 				/* 此处存在疑问： 扇区个数如果写 count ，将导致最后1个block无法写入 */
 				//Status = SD_WriteMultiBlocks((uint8_t *)buff, sector << 9 ,SECTOR_SIZE, count);
-				Status = SD_WriteMultiBlock(sector << 9 ,(uint8_t *)buff, SECTOR_SIZE, count + 1);
-
-				if (Status != SD_OK)
-				{
-					return RES_ERROR;
-				}
-
-			#ifdef SD_DMA_MODE
-				/* SDIO工作在DMA模式，需要检查操作DMA传输是否完成 */
-				Status = SD_WaitReadOperation();
-				if (Status != SD_OK)
-				{
-					return RES_ERROR;
-				}
-				while(SD_GetStatus() != SD_TRANSFER_OK);
-			#endif
-
-
-				return RES_OK;
+				Status = SD_WriteMultiBlock((uint8_t *)buff, sector << 9 ,SECTOR_SIZE, count + 1);
 			}
+			
+			if (Status != SD_OK)
+			{
+				res = RES_ERROR;
+				break;
+			}
+
+		#ifdef SD_DMA_MODE
+			/* SDIO工作在DMA模式，需要检查操作DMA传输是否完成 */
+			Status = SD_WaitReadOperation();
+			if (Status != SD_OK)
+			{
+				res = RES_ERROR;
+				break;
+			}
+			while(SD_GetStatus() != SD_TRANSFER_OK);
+		#endif
+			
+			res = RES_OK;
+			break;
 		}
 
-
-	case FS_NAND :
-		res = RES_OK;
-		return res;
+		default:
+			res = RES_PARERR;
+			break;
 	}
-	return RES_PARERR;
+	return res;
 }
 #endif
 
 
-/*-----------------------------------------------------------------------*/
-/* Miscellaneous Functions                                               */
-/*-----------------------------------------------------------------------*/
-
+/*-------------------------------------------------------------------------------------------*/
+/* Miscellaneous Functions                                                                   */
+/*-------------------------------------------------------------------------------------------*/
 #if _USE_IOCTL
 DRESULT disk_ioctl (
 	BYTE pdrv,		/* Physical drive nmuber (0..) */
@@ -226,50 +197,40 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-	
+	DRESULT res = RES_PARERR;
+
 	switch (pdrv) {
-		
-//	case FS_SPI_FLASH :
-//		switch(cmd)
-//		{
-//			/* SPI Flash不需要同步 */
-//			case CTRL_SYNC :  
-//				return RES_OK;
-//			
-//			/* 返回SPI Flash扇区大小 */
-//			case GET_SECTOR_SIZE:
-//				*((WORD *)buff) = 4096;  
-//				return RES_OK;
-//			
-//			/* 返回SPI Flash扇区数 */
-//			case GET_SECTOR_COUNT:
-//				*((DWORD *)buff) = 2048;    
-//				return RES_OK;
-//			
-//			/* 下面这两项暂时未用 */
-//			case GET_BLOCK_SIZE:   
-//				return RES_OK;
-//			
-//			case CTRL_ERASE_SECTOR:
-//				return RES_OK;       
-//		}
-		
-	 case FS_SD :
-		{	
-		   switch(cmd)
-		   {
-			/* 返回SD扇区大小 */
-			case GET_SECTOR_SIZE:
-				*((WORD *)buff) = 512;  
-				return RES_OK;
-			
+	case FS_SD :
+		res = RES_ERROR;
+		switch (cmd)
+		{
+			/* SD卡磁盘容量： SDCardInfo.CardCapacity */
+			case CTRL_SYNC :		/* Wait for end of internal write process of the drive */
+				res = RES_OK;
+				break;
+
+			case GET_SECTOR_COUNT :	/* Get drive capacity in unit of sector (DWORD) */
+				//*(DWORD*)buff = SDCardInfo.CardCapacity / 512;
+				res = RES_OK;
+				break;
+
+			case GET_BLOCK_SIZE :	/* Get erase block size in unit of sector (DWORD) */
+				*(WORD*)buff = 512;
+				res = RES_OK;
+				break;
+
+			case CTRL_ERASE_SECTOR: /* Erase a block of sectors (used when _USE_ERASE == 1) */
 			default:
-				return RES_OK;    
-		   }  
-	   }		   
+				res = RES_PARERR;
+				break;
+		}
+		break;
+
+	default:
+		res = RES_PARERR;
+		break;
 	}
-	
-	return RES_PARERR;
+	return res;
 }
 #endif
 
@@ -292,4 +253,3 @@ DWORD get_fattime (void)
 			| ((DWORD)0 << 5)				/* Min = 0 */
 			| ((DWORD)0 >> 1);				/* Sec = 0 */
 }
-

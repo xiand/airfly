@@ -315,7 +315,6 @@ uint8_t SD_Init(void)
 	spiGpioInit();
 	spiHardInit();
 	SD_SPI_CS_ENABLE();
-	printf("enter the SD_INIT\r\n");
 
 	// 纯延时，等待SD卡上电完成
 	for (i = 0; i < 0xf00; i++)
@@ -444,11 +443,6 @@ uint8_t SD_Init(void)
 				retry++;
 				sd_SendCommand(CMD55, 0, 1);
 
-//				if (r1 != 0x01)
-//				{
-//					return r1;
-//				}
-
 				r1					= sd_SendCommand(ACMD41, 0x40000000, 1);
 
 				if (retry > 0XFFFE)
@@ -485,7 +479,7 @@ uint8_t SD_Init(void)
 			//-----------鉴别SD2.0卡版本结束----------- 
 			//设置SPI为高速模式
 			////设置高速模式
-			//SD_SPI_SpeedHigh();	
+			SD_SPI_SpeedHigh();	
 		}
 	}
 	printf("sd init ret = %d\r\n",r1);
@@ -871,7 +865,7 @@ uint8_t sd_ReadSingleBlock(uint8_t * buffer,u32 sector,  uint32_t len)
 *					0： 成功
 *					other：失败
 *******************************************************************************/
-uint8_t SD_WriteSingleBlock(u32 sector, uint8_t * data, uint32_t uiSize)
+uint8_t SD_WriteSingleBlock(uint8_t * data, u32 sector,  uint32_t uiSize)
 {
 	uint8_t r1;
 	uint16_t i;
@@ -1018,7 +1012,7 @@ uint8_t SD_ReadMultiBlock(uint8_t * buffer,u32 sector,uint32_t len,  uint8_t cou
 *					0： 成功
 *					other：失败
 *******************************************************************************/
-uint8_t SD_WriteMultiBlock(u32 sector, const uint8_t * data, uint32_t uiSize,uint8_t count)
+uint8_t SD_WriteMultiBlock(const uint8_t * data, u32 sector,  uint32_t uiSize,uint8_t count)
 {
 	uint8_t r1;
 	uint16_t i;

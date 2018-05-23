@@ -18,6 +18,7 @@
 
 #include "bsp.h"
 #include "ff.h"			/* FatFS文件系统模块*/
+#include "demo_sdio_fatfs.h"
 
 /* 用于测试读写速度 */
 #define TEST_FILE_LEN			(2*1024*1024)	/* 用于测试的文件长度 */
@@ -32,33 +33,6 @@ static void ReadFileData(void);
 static void CreateDir(void);
 static void DeleteDirFile(void);
 static void WriteFileTest(void);
-static void FileFormat(void);
-static void ViewRootDir2(void);
-
-/* FatFs API的返回值 */
-static const char * FR_Table[]= 
-{
-	"FR_OK：成功",				                             /* (0) Succeeded */
-	"FR_DISK_ERR：底层硬件错误",			                 /* (1) A hard error occurred in the low level disk I/O layer */
-	"FR_INT_ERR：断言失败",				                     /* (2) Assertion failed */
-	"FR_NOT_READY：物理驱动没有工作",			             /* (3) The physical drive cannot work */
-	"FR_NO_FILE：文件不存在",				                 /* (4) Could not find the file */
-	"FR_NO_PATH：路径不存在",				                 /* (5) Could not find the path */
-	"FR_INVALID_NAME：无效文件名",		                     /* (6) The path name format is invalid */
-	"FR_DENIED：由于禁止访问或者目录已满访问被拒绝",         /* (7) Access denied due to prohibited access or directory full */
-	"FR_EXIST：文件已经存在",			                     /* (8) Access denied due to prohibited access */
-	"FR_INVALID_OBJECT：文件或者目录对象无效",		         /* (9) The file/directory object is invalid */
-	"FR_WRITE_PROTECTED：物理驱动被写保护",		             /* (10) The physical drive is write protected */
-	"FR_INVALID_DRIVE：逻辑驱动号无效",		                 /* (11) The logical drive number is invalid */
-	"FR_NOT_ENABLED：卷中无工作区",			                 /* (12) The volume has no work area */
-	"FR_NO_FILESYSTEM：没有有效的FAT卷",		             /* (13) There is no valid FAT volume */
-	"FR_MKFS_ABORTED：由于参数错误f_mkfs()被终止",	         /* (14) The f_mkfs() aborted due to any parameter error */
-	"FR_TIMEOUT：在规定的时间内无法获得访问卷的许可",		 /* (15) Could not get a grant to access the volume within defined period */
-	"FR_LOCKED：由于文件共享策略操作被拒绝",				 /* (16) The operation is rejected according to the file sharing policy */
-	"FR_NOT_ENOUGH_CORE：无法分配长文件名工作区",		     /* (17) LFN working buffer could not be allocated */
-	"FR_TOO_MANY_OPEN_FILES：当前打开的文件数大于_FS_SHARE", /* (18) Number of open files > _FS_SHARE */
-	"FR_INVALID_PARAMETER：参数无效"	                     /* (19) Given parameter is invalid */
-};
 
 /*
 *********************************************************************************************************
@@ -72,12 +46,15 @@ void DemoFatFS(void)
 {
 	uint8_t cmd;
 
+	/* 打印命令列表，用户可以通过串口操作指令 */
+	DispMenu();
 	while(1)
 	{
 		bsp_Idle();		/* 这个函数在bsp.c文件。用户可以修改这个函数实现CPU休眠和喂狗 */
 
 		if (comGetChar(COM2, &cmd))	/* 从串口读入一个字符(非阻塞方式) */
 		{
+			printf("\r\n");
 			switch (cmd)
 			{
 				case '1':
@@ -115,10 +92,53 @@ void DemoFatFS(void)
 					break;
 			}
 		}
-		
+
+//		/* 按键滤波和检测由后台systick中断服务程序实现，我们只需要调用bsp_GetKey读取键值即可。 */
+//		switch (bsp_GetKey())	/* bsp_GetKey()读取键值, 无键按下时返回 KEY_NONE = 0 */
+//		{
+//			case KEY_DOWN_K1:			/* K1键按下 */
+//				break;
+
+//			case KEY_UP_K1:				/* K1键弹起 */
+//				break;
+
+//			case KEY_DOWN_K2:			/* K2键按下 */
+//				break;
+
+//			case KEY_UP_K2:				/* K2键弹起 */
+//				break;
+
+//			case KEY_DOWN_K3:			/* K3键按下 */
+//				break;
+
+//			case KEY_UP_K3:				/* K3键弹起 */
+//				break;
+
+//			case JOY_DOWN_U:			/* 摇杆UP键按下 */
+//				break;
+
+//			case JOY_DOWN_D:			/* 摇杆DOWN键按下 */
+//				break;
+
+//			case JOY_DOWN_L:			/* 摇杆LEFT键按下 */
+//				break;
+
+//			case JOY_DOWN_R:			/* 摇杆RIGHT键按下 */
+//				break;
+
+//			case JOY_DOWN_OK:			/* 摇杆OK键按下 */
+//				break;
+
+//			case JOY_UP_OK:				/* 摇杆OK键弹起 */
+//				break;
+
+//			case KEY_NONE:				/* 无键按下 */
+//			default:
+//				/* 其它的键值不处理 */
+//				break;
+//		}
 	}
 }
-
 
 /*
 *********************************************************************************************************
@@ -148,10 +168,7 @@ static void DispMenu(void)
 *	返 回 值: 无
 *********************************************************************************************************
 */
-
 static void ViewRootDir(void)
-{}
-#if 0
 {
 	/* 本函数使用的局部变量占用较多，请修改启动文件，保证堆栈空间够用 */
 	FRESULT result;
@@ -162,7 +179,7 @@ static void ViewRootDir(void)
 	char lfname[256];
 
  	/* 挂载文件系统 */
-	result = f_mount(&fs,"0:/",1);	/* Mount a logical drive */
+	result = f_mount(FS_SD, &fs);	/* Mount a logical drive */
 	if (result != FR_OK)
 	{
 		printf("挂载文件系统失败 (%d)\r\n", result);
@@ -213,9 +230,9 @@ static void ViewRootDir(void)
 	}
 
 	/* 卸载文件系统 */
-	f_mount(&fs,NULL,1);
+	f_mount(FS_SD, NULL);
 }
-#endif
+
 /*
 *********************************************************************************************************
 *	函 数 名: CreateNewFile
@@ -224,45 +241,33 @@ static void ViewRootDir(void)
 *	返 回 值: 无
 *********************************************************************************************************
 */
-FRESULT result;
-	FATFS fs;
-FIL file;
-	DIR DirInf;
 static void CreateNewFile(void)
 {
 	/* 本函数使用的局部变量占用较多，请修改启动文件，保证堆栈空间够用 */
-	
-	
+	FRESULT result;
+	FATFS fs;
+	FIL file;
+	DIR DirInf;
 	uint32_t bw;
-	disk_initialize(0);
+
  	/* 挂载文件系统 */
-	result = f_mount(&fs,"0:/",1);			/* Mount a logical drive */
+	result = f_mount(FS_SD, &fs);			/* Mount a logical drive */
 	if (result != FR_OK)
 	{
 		printf("挂载文件系统失败 (%d)\r\n", result);
 	}
-	else
-	{
-		printf("挂载文件系统成功 (%d)\r\n", result);
-	}
+
 	/* 打开根文件夹 */
-//	result = f_opendir(&DirInf, "/"); /* 如果不带参数，则从当前目录开始 */
-//	if (result != FR_OK)
-//	{
-//		printf("打开根目录失败 (%d)\r\n", result);
-//		return;
-//	}
+	result = f_opendir(&DirInf, "/"); /* 如果不带参数，则从当前目录开始 */
+	if (result != FR_OK)
+	{
+		printf("打开根目录失败 (%d)\r\n", result);
+		return;
+	}
 
 	/* 打开文件 */
-	result = f_open(&file, "0:/armfly.txt", FA_CREATE_ALWAYS | FA_WRITE);
-	if (result == FR_OK)
-	{
-		printf("armfly.txt 文件open 成功\r\n");
-	}
-	else
-	{
-		printf("armfly.txt 文件open失败 result = %d \r\n", result);
-	}
+	result = f_open(&file, "armfly.txt", FA_CREATE_ALWAYS | FA_WRITE);
+
 	/* 写一串数据 */
 	result = f_write(&file, "FatFS Write Demo \r\n www.armfly.com \r\n", 34, &bw);
 	if (result == FR_OK)
@@ -271,14 +276,14 @@ static void CreateNewFile(void)
 	}
 	else
 	{
-		printf("armfly.txt 文件写入失败 result = %d \r\n", result);
+		printf("armfly.txt 文件写入失败\r\n");
 	}
 
 	/* 关闭文件*/
 	f_close(&file);
 
 	/* 卸载文件系统 */
-	 f_mount(NULL, "0:", 0);
+	f_mount(FS_SD, NULL);
 }
 
 /*
@@ -300,7 +305,7 @@ static void ReadFileData(void)
 	char buf[128];
 
  	/* 挂载文件系统 */
-	result = f_mount(&fs,"0:/",1);			/* Mount a logical drive */
+	result = f_mount(FS_SD, &fs);			/* Mount a logical drive */
 	if (result != FR_OK)
 	{
 		printf("挂载文件系统失败(%d)\r\n", result);
@@ -338,7 +343,7 @@ static void ReadFileData(void)
 	f_close(&file);
 
 	/* 卸载文件系统 */
-	f_mount(&fs,NULL,1);
+	f_mount(FS_SD, NULL);
 }
 
 /*
@@ -356,7 +361,7 @@ static void CreateDir(void)
 	FATFS fs;
 
  	/* 挂载文件系统 */
-	result = f_mount(&fs,"0:/",1);			/* Mount a logical drive */
+	result = f_mount(FS_SD, &fs);			/* Mount a logical drive */
 	if (result != FR_OK)
 	{
 		printf("挂载文件系统失败 (%d)\r\n", result);
@@ -411,7 +416,7 @@ static void CreateDir(void)
 	}
 
 	/* 卸载文件系统 */
-	f_mount(&fs,NULL,1);
+	f_mount(FS_SD, NULL);
 }
 
 /*
@@ -431,7 +436,7 @@ static void DeleteDirFile(void)
 	uint8_t i;
 
  	/* 挂载文件系统 */
-	result = f_mount(&fs,"0:/",1);			/* Mount a logical drive */
+	result = f_mount(FS_SD, &fs);			/* Mount a logical drive */
 	if (result != FR_OK)
 	{
 		printf("挂载文件系统失败 (%d)\r\n", result);
@@ -542,7 +547,7 @@ static void DeleteDirFile(void)
 	}
 
 	/* 卸载文件系统 */
-	f_mount(&fs,NULL,1);
+	f_mount(FS_SD, NULL);
 }
 
 /*
@@ -573,7 +578,7 @@ static void WriteFileTest(void)
 	}
 
   	/* 挂载文件系统 */
-	result = f_mount(&fs,"0:/",1);			/* Mount a logical drive */
+	result = f_mount(FS_SD, &fs);			/* Mount a logical drive */
 	if (result != FR_OK)
 	{
 		printf("挂载文件系统失败 (%d)\r\n", result);
@@ -680,5 +685,7 @@ static void WriteFileTest(void)
 	f_close(&file);
 
 	/* 卸载文件系统 */
-	f_mount(&fs,NULL,1);
+	f_mount(FS_SD, NULL);
 }
+
+/***************************** 安富莱电子 www.armfly.com (END OF FILE) *********************************/

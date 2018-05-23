@@ -1,6 +1,29 @@
 源代码下载地址：
 http://elm-chan.org/fsw/ff/00index_e.html
 
+========== R0.11 ================================
+
+========== R0.10b ================================
+2014-10-13  升级到 R0.10b版本
+1. disk_ioctl() 函数，修复获取有效容量的bug. (U盘和NAND)
+	*(DWORD*)buff = NAND_FormatCapacity() / 512;	/* 必须为可用的扇区个数，不是芯片的理论容量 */
+	...
+
+2. f_mount() 形式参数变化
+3. diskio.h 新增:
+	/* Definitions of physical drive number for each media */
+	#define FS_SD		0
+	#define FS_NAND		1
+	#define FS_USB		2
+
+	/* 用于 R0.10b 新版本 */
+	#define FS_SD_STR		"0:"
+	#define FS_NAND_STR	"1:"
+	#define FS_USB_STR		"2:"
+4. #define _CODE_PAGE	936
+
+
+========== R0.09b================================
 本移植记录对应的版本为 R0.09b
 
 1. 直接下载 ff9b.zip 文件，然后解压，将其复制到自己的工程中。
@@ -17,7 +40,7 @@ http://elm-chan.org/fsw/ff/00index_e.html
 
 5. 为了支持长文件名，必须包含 cc936.c 文件，其中 static const WCHAR uni2oem[] 常量数组
 	是一个GB2312码和UNICODE代码的转换表，会占用程序空间约170K字节。
-	
+
 ==========================================
 【ffconf.h 修改记录】
 （1）#define _CODE_PAGE	932		/* 这是日文编码 */
@@ -33,6 +56,7 @@ http://elm-chan.org/fsw/ff/00index_e.html
 
 （4）在末尾增加 #include "diskio.h"。 主要目的是声明多个磁盘系统的ID（FS_SD和FS_NAND)
 
+ (5) #define _VOLUMES	3	【为了同时支持SD卡,NAND Flash 和 USB 三种介质，将 1 修改为 3】
 
 【diskio.c 修改记录】
 1. 修改 disk_initialize, 添加SD卡初始化
@@ -47,7 +71,8 @@ http://elm-chan.org/fsw/ff/00index_e.html
 	/* Definitions of physical drive number for each media */
 	#define FS_SD		0
 	#define FS_NAND		1
-	
+	#define FS_USB		2
+
 
 【长文件名问题】
 1. 部分文件的属性中只有短文件名 FileInf.fname ，长文件名域 FileInf.lfname 为空
@@ -57,6 +82,6 @@ http://elm-chan.org/fsw/ff/00index_e.html
 【SD_WriteMultiBlocks()函数问题】
 1. 在 disk_write 中，如果待写入的 block大于1，可以选择 SD_WriteMultiBlocks（）函数加速
 	但是最后一个形参需要是 count + 1 才能正确写入，否则最后1个扇区的数据将不正确。
-【原因待查】	
+【原因待查】
 				/* 此处存在疑问： 扇区个数如果写 count ，将导致最后1个block无法写入 */
 				Status = SD_WriteMultiBlocks((uint8_t *)buff, sector << 9 ,SECTOR_SIZE, count + 1);

@@ -255,12 +255,12 @@ void bsp_sdInit(void);
 uint8_t sd_ReadWriteByte(uint8_t ucData);
 
 uint32_t SD_GetCapacity(void);
-uint8_t SD_ReadMultiBlock(uint8_t * buffer,u32 sector,uint32_t len,  uint8_t count);
 
 uint8_t sd_ReadSingleBlock(uint8_t * buffer,u32 sector,  uint32_t len);
+uint8_t SD_ReadMultiBlock(uint8_t * buffer,u32 sector,uint32_t len,  uint8_t count);
 
-uint8_t SD_WriteSingleBlock(u32 sector, uint8_t * data, uint32_t uiSize);
-uint8_t SD_WriteMultiBlock(u32 sector, const uint8_t * data, uint32_t uiSize,uint8_t count);
+uint8_t SD_WriteSingleBlock(uint8_t * data, u32 sector,  uint32_t uiSize);
+uint8_t SD_WriteMultiBlock(const uint8_t * data, u32 sector,  uint32_t uiSize,uint8_t count);
 uint8_t SD_Read_Bytes(unsigned long address, unsigned char * buf, unsigned int offset, unsigned int bytes);
 
 //设置spi低速模式

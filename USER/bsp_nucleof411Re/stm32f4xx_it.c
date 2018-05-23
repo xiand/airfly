@@ -154,7 +154,7 @@ void DebugMon_Handler(void)
 //{
 //}
 
-
+#if USE_FREERTOS == 0
 /**
   * @brief  This function handles SysTick Handler.
   * @param  None
@@ -165,6 +165,8 @@ void SysTick_Handler(void)
   //TimingDelay_Decrement();
 	My_SysTick_Handler();
 }
+#endif
+
 #if 0
 void EXTI15_10_IRQHandler(void)
 {
