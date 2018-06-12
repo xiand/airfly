@@ -53,7 +53,7 @@ DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
 #define GET_SECTOR_COUNT	1	/* Get media size (needed at _USE_MKFS == 1) */
 #define GET_SECTOR_SIZE		2	/* Get sector size (needed at _MAX_SS != _MIN_SS) */
 #define GET_BLOCK_SIZE		3	/* Get erase block size (needed at _USE_MKFS == 1) */
-#define CTRL_ERASE_SECTOR	4	/* Inform device that the data on the block of sectors is no longer used (needed at _USE_TRIM == 1) */
+#define CTRL_TRIM			4	/* Inform device that the data on the block of sectors is no longer used (needed at _USE_TRIM == 1) */
 
 /* Generic command (Not used by FatFs) */
 #define CTRL_POWER			5	/* Get/Set power status */
@@ -77,12 +77,8 @@ DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
 #define FS_SD		0
 #define FS_NAND		1
 #define FS_USB		2
-
-/* 用于 R0.11 新版本 */
-#define FS_VOLUME_SD		"0:"
-#define FS_VOLUME_NAND		"1:"
-#define FS_VOLUME_USB		"2:"
-
+#define FS_SPI		3
+#define FS_NOR		4
 
 #ifdef __cplusplus
 }

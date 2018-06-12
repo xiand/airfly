@@ -1,12 +1,23 @@
 /*---------------------------------------------------------------------------/
-/  FatFs - FAT file system module configuration file  R0.11a (C)ChaN, 2015
+/  FatFs - FAT file system module configuration file  R0.11 (C)ChaN, 2015
 /---------------------------------------------------------------------------*/
 
-#define _FFCONF 64180	/* Revision ID */
+#define _FFCONF 32020	/* Revision ID */
+
+
+//#include "os.h"         /* 添加uCOS-III的头文件 */
 
 /*---------------------------------------------------------------------------/
-/ Function Configurations
+/ Functions and Buffer Configurations
 /---------------------------------------------------------------------------*/
+
+#define	_FS_TINY		0
+/* This option switches tiny buffer configuration. (0:Normal or 1:Tiny)
+/  At the tiny configuration, size of the file object (FIL) is reduced _MAX_SS
+/  bytes. Instead of private sector buffer eliminated from the file object,
+/  common sector buffer in the file system object (FATFS) is used for the file
+/  data transfer. */
+
 
 #define _FS_READONLY	0
 /* This option switches read-only configuration. (0:Read/Write or 1:Read-only)
@@ -39,7 +50,7 @@
 /  f_findfirst() and f_findnext(). (0:Disable or 1:Enable) */
 
 
-#define	_USE_MKFS		0
+#define	_USE_MKFS		1
 /* This option switches f_mkfs() function. (0:Disable or 1:Enable) */
 
 
@@ -61,32 +72,27 @@
 / Locale and Namespace Configurations
 /---------------------------------------------------------------------------*/
 
-#define _CODE_PAGE	936
+#define _CODE_PAGE	932
 /* This option specifies the OEM code page to be used on the target system.
 /  Incorrect setting of the code page can cause a file open failure.
 /
-/   1   - ASCII (No extended character. Non-LFN cfg. only)
-/   437 - U.S.
-/   720 - Arabic
-/   737 - Greek
-/   771 - KBL
-/   775 - Baltic
-/   850 - Latin 1
-/   852 - Latin 2
-/   855 - Cyrillic
-/   857 - Turkish
-/   860 - Portuguese
-/   861 - Icelandic
-/   862 - Hebrew
-/   863 - Canadian French
-/   864 - Arabic
-/   865 - Nordic
-/   866 - Russian
-/   869 - Greek 2
-/   932 - Japanese (DBCS)
-/   936 - Simplified Chinese (DBCS)
-/   949 - Korean (DBCS)
-/   950 - Traditional Chinese (DBCS)
+/   1    - ASCII (No extended character. Non-LFN cfg. only)
+/   437  - U.S.
+/   720  - Arabic
+/   737  - Greek
+/   775  - Baltic
+/   850  - Multilingual Latin 1
+/   852  - Latin 2
+/   855  - Cyrillic
+/   857  - Turkish
+/   858  - Multilingual Latin 1 + Euro
+/   862  - Hebrew
+/   866  - Russian
+/   874  - Thai
+/   932  - Japanese Shift_JIS (DBCS)
+/   936  - Simplified Chinese GBK (DBCS)
+/   949  - Korean (DBCS)
+/   950  - Traditional Chinese Big5 (DBCS)
 */
 
 
@@ -138,7 +144,7 @@
 / Drive/Volume Configurations
 /---------------------------------------------------------------------------*/
 
-#define _VOLUMES	1
+#define _VOLUMES	3
 /* Number of volumes (logical drives) to be used. */
 
 
@@ -192,29 +198,21 @@
 / System Configurations
 /---------------------------------------------------------------------------*/
 
-#define	_FS_TINY	0
-/* This option switches tiny buffer configuration. (0:Normal or 1:Tiny)
-/  At the tiny configuration, size of the file object (FIL) is reduced _MAX_SS
-/  bytes. Instead of private sector buffer eliminated from the file object,
-/  common sector buffer in the file system object (FATFS) is used for the file
-/  data transfer. */
-
-
 #define _FS_NORTC	0
-#define _NORTC_MON	1
+#define _NORTC_MON	2
 #define _NORTC_MDAY	1
 #define _NORTC_YEAR	2015
 /* The _FS_NORTC option switches timestamp feature. If the system does not have
 /  an RTC function or valid timestamp is not needed, set _FS_NORTC to 1 to disable
 /  the timestamp feature. All objects modified by FatFs will have a fixed timestamp
 /  defined by _NORTC_MON, _NORTC_MDAY and _NORTC_YEAR.
-/  When timestamp feature is enabled (_FS_NORTC == 0), get_fattime() function need
+/  When timestamp feature is enabled (_FS_NORTC	== 0), get_fattime() function need
 /  to be added to the project to read current time form RTC. _NORTC_MON,
 /  _NORTC_MDAY and _NORTC_YEAR have no effect. 
 /  These options have no effect at read-only configuration (_FS_READONLY == 1). */
 
 
-#define	_FS_LOCK	3     /* 0:Disable or >=1:Enable 【由0 修改 3, 支持同时打开3个文件】*/
+#define	_FS_LOCK	0
 /* The _FS_LOCK option switches file lock feature to control duplicated file open
 /  and illegal operation to open objects. This option must be 0 when _FS_READONLY
 /  is 1.
@@ -225,10 +223,10 @@
 /      can be opened simultaneously under file lock control. Note that the file
 /      lock feature is independent of re-entrancy. */
 
-
-#define _FS_REENTRANT	0
-#define _FS_TIMEOUT		1000
-#define	_SYNC_t			HANDLE
+#define _FS_REENTRANT	0		    /* 0:Disable or 1:Enable */
+#define _FS_TIMEOUT		0	        /* Timeout period in unit of time tick */
+                                    /* 这里延迟等待时间取0，表示永久等待 */
+#define	_SYNC_t			0//OS_MUTEX	/* O/S dependent sync object type. e.g. HANDLE, OS_EVENT*, ID, SemaphoreHandle_t and etc.. */
 /* The _FS_REENTRANT option switches the re-entrancy (thread safe) of the FatFs
 /  module itself. Note that regardless of this option, file access to different
 /  volume is always re-entrant and volume control functions, f_mount(), f_mkfs()
@@ -243,8 +241,7 @@
 /
 /  The _FS_TIMEOUT defines timeout period in unit of time tick.
 /  The _SYNC_t defines O/S dependent sync object type. e.g. HANDLE, ID, OS_EVENT*,
-/  SemaphoreHandle_t and etc.. A header file for O/S definitions needs to be
-/  included somewhere in the scope of ff.c. */
+/  SemaphoreHandle_t and etc.. */
 
 
 #define _WORD_ACCESS	0
@@ -258,19 +255,15 @@
 /  * Byte order on the memory is little-endian.
 /
 /  If it is the case, _WORD_ACCESS can also be set to 1 to reduce code size.
-/  Following table shows allowable settings of some type of processors.
+/  Following table shows allowable settings of some processor types.
 /
-/  ARM7TDMI   0   *2          ColdFire   0    *1         V850E      0    *2
-/  Cortex-M3  0   *3          Z80        0/1             V850ES     0/1
-/  Cortex-M0  0   *2          x86        0/1             TLCS-870   0/1
-/  AVR        0/1             RX600(LE)  0/1             TLCS-900   0/1
-/  AVR32      0   *1          RL78       0    *2         R32C       0    *2
-/  PIC18      0/1             SH-2       0    *1         M16C       0/1
-/  PIC24      0   *2          H8S        0    *1         MSP430     0    *2
-/  PIC32      0   *1          H8/300H    0    *1         8051       0/1
-/
-/  *1:Big-endian.
-/  *2:Unaligned memory access is not supported.
-/  *3:Some compilers generate LDM/STM for mem_cpy function.
+/   ARM7TDMI    0           ColdFire    0           V850E       0
+/   Cortex-M3   0           Z80         0/1         V850ES      0/1
+/   Cortex-M0   0           x86         0/1         TLCS-870    0/1
+/   AVR         0/1         RX600(LE)   0/1         TLCS-900    0/1
+/   AVR32       0           RL78        0           R32C        0
+/   PIC18       0/1         SH-2        0           M16C        0/1
+/   PIC24       0           H8S         0           MSP430      0
+/   PIC32       0           H8/300H     0           8051        0/1
 */
 

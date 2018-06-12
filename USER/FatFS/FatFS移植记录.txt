@@ -1,29 +1,6 @@
 源代码下载地址：
 http://elm-chan.org/fsw/ff/00index_e.html
 
-========== R0.11 ================================
-
-========== R0.10b ================================
-2014-10-13  升级到 R0.10b版本
-1. disk_ioctl() 函数，修复获取有效容量的bug. (U盘和NAND)
-	*(DWORD*)buff = NAND_FormatCapacity() / 512;	/* 必须为可用的扇区个数，不是芯片的理论容量 */
-	...
-
-2. f_mount() 形式参数变化
-3. diskio.h 新增:
-	/* Definitions of physical drive number for each media */
-	#define FS_SD		0
-	#define FS_NAND		1
-	#define FS_USB		2
-
-	/* 用于 R0.10b 新版本 */
-	#define FS_SD_STR		"0:"
-	#define FS_NAND_STR	"1:"
-	#define FS_USB_STR		"2:"
-4. #define _CODE_PAGE	936
-
-
-========== R0.09b================================
 本移植记录对应的版本为 R0.09b
 
 1. 直接下载 ff9b.zip 文件，然后解压，将其复制到自己的工程中。

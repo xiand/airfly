@@ -30,6 +30,8 @@
 ".\objects\stm32f4xx_flash.o"
 ".\objects\stm32f4xx_flash_ramfunc.o"
 ".\objects\system_stm32f4xx.o"
+".\objects\diskio.o"
+".\objects\ff.o"
 ".\objects\common.o"
 ".\objects\flash_if.o"
 ".\objects\menu.o"

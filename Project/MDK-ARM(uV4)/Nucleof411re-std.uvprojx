@@ -750,10 +750,10 @@
               <RVCTZI>0</RVCTZI>
               <RVCTOtherData>0</RVCTOtherData>
               <ModuleSelection>0</ModuleSelection>
-              <IncludeInBuild>0</IncludeInBuild>
-              <AlwaysBuild>0</AlwaysBuild>
-              <GenerateAssemblyFile>0</GenerateAssemblyFile>
-              <AssembleAssemblyFile>0</AssembleAssemblyFile>
+              <IncludeInBuild>1</IncludeInBuild>
+              <AlwaysBuild>1</AlwaysBuild>
+              <GenerateAssemblyFile>1</GenerateAssemblyFile>
+              <AssembleAssemblyFile>1</AssembleAssemblyFile>
               <PublicsOnly>2</PublicsOnly>
               <StopOnExitCode>11</StopOnExitCode>
               <CustomArgument></CustomArgument>
@@ -815,37 +815,12 @@
             <File>
               <FileName>diskio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\USER\FatFS\src\diskio.c</FilePath>
+              <FilePath>..\..\USER\fatfs\src\diskio.c</FilePath>
             </File>
             <File>
               <FileName>ff.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\USER\FatFS\src\ff.c</FilePath>
-            </File>
-            <File>
-              <FileName>diskio.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\USER\FatFS\src\diskio.h</FilePath>
-            </File>
-            <File>
-              <FileName>ff.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\USER\FatFS\src\ff.h</FilePath>
-            </File>
-            <File>
-              <FileName>ffconf.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\USER\FatFS\src\ffconf.h</FilePath>
-            </File>
-            <File>
-              <FileName>integer.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\USER\FatFS\src\integer.h</FilePath>
-            </File>
-            <File>
-              <FileName>cc936.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\USER\FatFS\src\option\cc936.c</FilePath>
+              <FilePath>..\..\USER\fatfs\src\ff.c</FilePath>
             </File>
           </Files>
         </Group>
