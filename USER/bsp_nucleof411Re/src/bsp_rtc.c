@@ -16,7 +16,7 @@ __IO uint32_t	uwSynchPrediv = 0;
 
 //配置PC13号引脚输出波形
 //波形可以选择1hz或者512hz
-static void rtc_SignalOutput(void)
+static void RTC_Signal_Output(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
@@ -37,7 +37,7 @@ static void rtc_SignalOutput(void)
 //中断配置
 //配置 AlarmA中断
 //配置wakeup中断
-static void rtc_InteruptConfig(void)
+static void RTC_Int_Configure(void)
 {
 	NVIC_InitTypeDef NVIC_InitStructure;
 	EXTI_InitTypeDef EXTI_InitStructure;
@@ -81,7 +81,7 @@ static void rtc_InteruptConfig(void)
 //3、alarmA设置中断设置
 //4、wakeup中断设置
 //5、时钟输出512hz或者1hz
-static void rtc_Config(void)
+static void RTC_Config(void)
 {
 	//使能PWR时钟
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
@@ -196,11 +196,11 @@ static void rtc_Config(void)
 	RTC_ClearFlag(RTC_FLAG_WUTF);
 
 	//配置频率输出
-	rtc_SignalOutput();
+	RTC_Signal_Output();
 }
 
 
-void bsp_RtcInit(void)
+void RTC_Init(void)
 {
 	//上电的时候检测是否已经配置过RTC，如果配置过，在配置完成时
 	//设置RTC备份寄存器为0x32F2，如果检测到备份寄存器不是0x32F2
@@ -211,7 +211,7 @@ void bsp_RtcInit(void)
 	if (RTC_ReadBackupRegister(RTC_BKP_DR0) != 0x32F2)
 	{
 		//配置RTC
-		rtc_Config();
+		RTC_Config();
 
 		//打印调试信息 
 #ifdef RTC_Debug
@@ -258,26 +258,341 @@ void bsp_RtcInit(void)
 	}
 
 	//rtc中断功能配置
-	rtc_InteruptConfig();
+	RTC_Int_Configure();
 }
 
 
-//uint8_t aShowTime[50] = {0};
-void RTC_DateShow(void)
+
+/*****************************************************************************
+ 函 数 名  : RTC_Byte_To_Bcd2
+ 功能描述  : 将数据转换为BCD格式
+ 输入参数  : uint8_t Value  
+ 输出参数  : 无
+ 返 回 值  : 
+ 调用函数  : 
+ 被调函数  : 
+ 
+ 修改历史      :
+  1.日    期   : 2018年11月14日
+    作    者   : test
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+static uint8_t RTC_Byte_To_Bcd2(uint8_t Value)
 {
-	/* 得到当前时分秒*/
-	RTC_GetDate(RTC_Format_BIN, &RTC_DateStructure);
-	printf("%0.2d年 %0.2d月 %0.2d日 星期%0.1d\r\n", RTC_DateStructure.RTC_Year, 
-		RTC_DateStructure.RTC_Month, 
-		RTC_DateStructure.RTC_Date, 
-		RTC_DateStructure.RTC_WeekDay);
-	RTC_GetTime(RTC_Format_BIN, &RTC_TimeStructure);
-	printf("%0.2d:%0.2d:%0.2d\r\n", RTC_TimeStructure.RTC_Hours, 
-		RTC_TimeStructure.RTC_Minutes, 
-		RTC_TimeStructure.RTC_Seconds);
+  uint8_t bcdhigh = 0;
+  
+  while (Value >= 10)
+  {
+    bcdhigh++;
+    Value -= 10;
+  }
+  
+  return  ((uint8_t)(bcdhigh << 4) | Value);
+}
 
 
-	//printf(" RTC_GetWakeUpCounter = %d\r\n",RTC_GetWakeUpCounter());
+/*****************************************************************************
+ 函 数 名  : RTC_Bcd2_To_Byte
+ 功能描述  : 将BCD格式数据转换为十进制
+ 输入参数  : uint8_t Value  
+ 输出参数  : 无
+ 返 回 值  : 
+ 调用函数  : 
+ 被调函数  : 
+ 
+ 修改历史      :
+  1.日    期   : 2018年11月14日
+    作    者   : test
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+static uint8_t RTC_Bcd2_To_Byte(uint8_t Value)
+{
+  uint8_t tmp = 0;
+  tmp = ((uint8_t)(Value & (uint8_t)0xF0) >> (uint8_t)0x4) * 10;
+  return (tmp + (Value & (uint8_t)0x0F));
+}
+
+/*****************************************************************************
+ 函 数 名  : RTC_Bit_Set
+ 功能描述  : 设定指定位为1或者0
+ 输入参数  : unsigned int *p_data   
+             unsigned int position  
+             unsigned char flag     
+ 输出参数  : 无
+ 返 回 值  : static
+ 调用函数  : 
+ 被调函数  : 
+ 
+ 修改历史      :
+  1.日    期   : 2018年11月15日
+    作    者   : test
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+static void RTC_Bit_Set(uint32_t *p_data,  uint32_t position, uint8_t flag)
+{
+	if(flag == 1)
+	{
+		*p_data |= (0x01<<(position));
+	} 
+	else
+	{
+		uint32_t c=(0x01<<(position));
+		*p_data &= ~c;
+	
+	}		
+}
+
+
+/*****************************************************************************
+ 函 数 名  : RTC_Read_Backup_Register
+ 功能描述  : 从备份寄存器中读取指定的数据
+ 输入参数  : uint16_t data_position  
+ 输出参数  : 无
+ 返 回 值  : 
+ 调用函数  : 
+ 被调函数  : 
+ 
+ 修改历史      :
+  1.日    期   : 2018年11月15日
+    作    者   : test
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+//uint32_t bkr_data[5] = {0,0,0,0,0};//测试使用
+uint32_t RTC_Read_Backup_Register(uint16_t data_info)
+{
+	uint8_t data_len = 0;
+	uint8_t data_pos = 0; 
+	uint8_t i  = 0;
+	uint8_t j  = 0;
+	uint8_t k  = 0;
+	uint8_t m = 0;
+	uint32_t ret = 0;
+	uint32_t bkr_data[5] = {0};
+	bkr_data[0] = RTC_ReadBackupRegister(RTC_BKP_DR0);
+	bkr_data[1] = RTC_ReadBackupRegister(RTC_BKP_DR1);
+	bkr_data[2] = RTC_ReadBackupRegister(RTC_BKP_DR2);
+	bkr_data[3] = RTC_ReadBackupRegister(RTC_BKP_DR3);
+	bkr_data[4] = RTC_ReadBackupRegister(RTC_BKP_DR4);
+
+	data_len = (data_info>>8)&0xff;
+	data_pos = (data_info&0xff);
+	
+	i = data_pos/32;
+	j = data_pos%32;
+
+	if(data_len > 32 - j)
+	{
+		for(k = 0; k < data_len; k++)
+		{
+			if(32 - j - k > 0)
+			{
+				if((bkr_data[i]>>(j+k))&0x01)
+				{
+					RTC_Bit_Set(&ret,k,1);
+				}
+				else
+				{
+					RTC_Bit_Set(&ret,k,0);
+				}
+			}
+			else
+			{
+				if((bkr_data[i+1]>>m)&0x01)
+				{
+					RTC_Bit_Set(&ret,k,1);
+				}
+				else
+				{
+					RTC_Bit_Set(&ret,k,0);
+				}
+				m++;
+			}
+			
+		}
+	}
+	else
+	{
+		for(k = 0; k < data_len; k++)
+		{
+			ret |= (bkr_data[i]>>(j+k))<<k;
+		}
+	}
+	return ret;
+
+}
+
+
+/*****************************************************************************
+ 函 数 名  : RTC_Write_Backup_Register
+ 功能描述  : 将数据存放到bkp备份寄存器中
+ 输入参数  : uint32_t data           
+             uint16_t data_position  
+ 输出参数  : 无
+ 返 回 值  : 
+ 调用函数  : 
+ 被调函数  : 
+ 
+ 修改历史      :
+  1.日    期   : 2018年11月14日
+    作    者   : test
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+//测试使用
+uint8_t data_len = 0;
+uint8_t data_pos = 0; 
+uint8_t i  = 0;
+uint8_t jk  = 0;
+uint8_t k  = 0;
+void RTC_Write_Backup_Register(uint32_t data,uint16_t data_info)
+{
+
+	uint8_t m = 0;
+	uint32_t bkr_data[5] = {0};
+	
+	RTC_WriteBackupRegister(RTC_BKP_DR0, 0);
+	RTC_WriteBackupRegister(RTC_BKP_DR1, 0);
+	RTC_WriteBackupRegister(RTC_BKP_DR2, 0);
+	RTC_WriteBackupRegister(RTC_BKP_DR3, 0);
+	RTC_WriteBackupRegister(RTC_BKP_DR4, 0);
+	
+	bkr_data[0] = RTC_ReadBackupRegister(RTC_BKP_DR0);
+	bkr_data[1] = RTC_ReadBackupRegister(RTC_BKP_DR1);
+	bkr_data[2] = RTC_ReadBackupRegister(RTC_BKP_DR2);
+	bkr_data[3] = RTC_ReadBackupRegister(RTC_BKP_DR3);
+	bkr_data[4] = RTC_ReadBackupRegister(RTC_BKP_DR4);
+
+	data_len = (data_info>>8)&0xff;
+	data_pos = (data_info & 0xff);
+	
+	i = data_pos/32;
+	jk = data_pos%32;
+
+	if(data_len > 32 - jk)
+	{
+		for(k = 0; k < data_len; k++)
+		{
+			if(32 - jk - k > 0)
+			{
+				if((data >> k)&0x01) //该位为1
+				{					
+					RTC_Bit_Set(&bkr_data[i],jk+k,1);
+				}
+				else
+				{
+					RTC_Bit_Set(&bkr_data[i],jk+k,0);
+				}
+			}
+			else
+			{
+				if((data >> k)&0x01) //该位为1
+				{					
+					RTC_Bit_Set(&bkr_data[i+1],m,1);
+				}
+				else
+				{
+					RTC_Bit_Set(&bkr_data[i+1],m,0);
+				}
+				m++;
+			}
+		}
+	}
+	else
+	{
+		for(k = 0; k < data_len; k++)
+		{
+			if((data >> k)&0x01) //该位为1
+			{
+				RTC_Bit_Set(&bkr_data[i],jk+k,1);
+			}
+			else
+			{
+				RTC_Bit_Set(&bkr_data[i],jk+k,0);
+			}
+		
+		}
+	}
+	RTC_WriteBackupRegister(RTC_BKP_DR0, bkr_data[0]);
+	RTC_WriteBackupRegister(RTC_BKP_DR1, bkr_data[1]);
+	RTC_WriteBackupRegister(RTC_BKP_DR2, bkr_data[2]);
+	RTC_WriteBackupRegister(RTC_BKP_DR3, bkr_data[3]);
+	RTC_WriteBackupRegister(RTC_BKP_DR4, bkr_data[4]);
+
+
+}
+
+/*****************************************************************************
+ 函 数 名  : RTC_Set_Time
+ 功能描述  : 设置rtc时间
+ 输入参数  : calender_Stu *calender  ---时间采用  RTC_Format_BIN
+ 输出参数  : 无
+ 返 回 值  : 
+ 调用函数  : 
+ 被调函数  : 
+ 
+ 修改历史      :
+  1.日    期   : 2018年11月15日
+    作    者   : test
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+void RTC_Set_Time(calender_Stu *calender)
+{
+	RTC_DateTypeDef  RTC_DateStruct;
+	RTC_TimeTypeDef  RTC_TimeStruct;
+	PWR_BackupAccessCmd(ENABLE);	
+	
+	RTC_DateStruct.RTC_WeekDay = RTC_Byte_To_Bcd2(calender->week);
+	RTC_DateStruct.RTC_Month = RTC_Byte_To_Bcd2(calender->month);
+	RTC_DateStruct.RTC_Date = RTC_Byte_To_Bcd2(calender->date);
+	RTC_DateStruct.RTC_Year = RTC_Byte_To_Bcd2(calender->year);
+	RTC_SetDate(RTC_Format_BCD, &RTC_DateStruct);
+
+	RTC_TimeStruct.RTC_H12 = RTC_H12_AM;
+	RTC_TimeStruct.RTC_Hours = RTC_Byte_To_Bcd2(calender->hour);
+	RTC_TimeStruct.RTC_Minutes = RTC_Byte_To_Bcd2(calender->min);
+	RTC_TimeStruct.RTC_Seconds = RTC_Byte_To_Bcd2(calender->sec);
+	
+	RTC_SetTime(RTC_Format_BCD, &RTC_TimeStruct);
+
+	PWR_BackupAccessCmd(DISABLE);
+}
+
+
+/*****************************************************************************
+ 函 数 名  : RTC_Read_Time
+ 功能描述  : 读取RTC时间
+ 输入参数  : calendar_Stu calendar - RTC_Format_BIN时间格式
+ 输出参数  : 
+ 返 回 值  : 
+ 调用函数  : 
+ 被调函数  : 
+ 
+ 修改历史      :
+  1.日    期   : 2018年11月15日
+    作    者   : test
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+void RTC_Read_Time(calender_Stu *calender)
+{	
+	RTC_DateTypeDef  RTC_DateStruct;
+	RTC_TimeTypeDef  RTC_TimeStruct;
+	RTC_WaitForSynchro();
+	RTC_GetDate(RTC_Format_BCD, &RTC_DateStruct);
+	RTC_GetTime(RTC_Format_BCD, &RTC_TimeStruct);
+
+	calender->year 		= 2000 + RTC_Bcd2_To_Byte(RTC_DateStruct.RTC_Year) % 2000;
+	calender->month		= RTC_Bcd2_To_Byte(RTC_DateStruct.RTC_Month);
+	calender->date 		= RTC_Bcd2_To_Byte(RTC_DateStruct.RTC_Date);
+	calender->week		= RTC_Bcd2_To_Byte(RTC_DateStruct.RTC_WeekDay);
+	calender->hour		= RTC_Bcd2_To_Byte(RTC_TimeStruct.RTC_Hours);
+	calender->min		= RTC_Bcd2_To_Byte(RTC_TimeStruct.RTC_Minutes);
+	calender->sec		= RTC_Bcd2_To_Byte(RTC_TimeStruct.RTC_Seconds);
 }
 
 

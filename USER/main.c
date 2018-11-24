@@ -1,188 +1,26 @@
-#if 0
-#include "includes.h"
-/*
-**********************************************************************************************************
-											oˉêyéù?÷
-**********************************************************************************************************
-*/
-static void vTaskUserIF(void *pvParameters);
-static void vTaskLED(void *pvParameters);
-static void vTaskStart(void *pvParameters);
-static void AppTaskCreate (void);
-static void AppObjCreate (void);
-void  App_Printf(char *format, ...);
+//完成一个好玩的项目
+//1、内存卡驱动-记录上层的操作
+//2、远程界面上控制数码管-led灯显示
+//3、主要为了熟悉freertos---不断阅读源代码和官方文档
 
-///*
-//**********************************************************************************************************
-//											±?á?éù?÷
-//**********************************************************************************************************
-//*/
-static TaskHandle_t xHandleTaskUserIF = NULL;
-static TaskHandle_t xHandleTaskLED = NULL;
-static TaskHandle_t xHandleTaskStart = NULL;
-static SemaphoreHandle_t  xMutex = NULL;
+#include "bsp.h"
 
 int main(void)
 {
-	/**********************************************************
-	在启动调度前，为了防止初始化STM32外设时有中断服务程序执行，
-	在这里禁止全局中断(除了NMI和HardFault)。
-	1、防止执行的中断服务程序中有FreeRTOS的API函数
-	2、保证系统正常启动，不受别的中断影响
-	3、关于是否关闭全局中断，视情况而定
-	在移植文件port.c中的函数prvStartFirstTask中会重新开启全局中断，使用指令
-	cpsie i开启，__set_PRIMASK(1)和cpsie i是等效的
-	**********************************************************/
-	__set_PRIMASK(1);
-
-//	//硬件初始化
 	bsp_Init();
-
-	vSetupSysInfoTest();
 	
-//	//创建任务
-	AppTaskCreate();
-
-//	//启动任务调度，开始执行任务
-	vTaskStartScheduler();
-
-	/*
-		如果系统正常启动是不会运行到这里的，运行到这里极有可能是因为定时器任务
-		或者空闲任务的heap空间不足导致创建失败，此时需要加大FreeRTOSConfig.h
-		文件中定于的heap大小
-	*/
-	while(1);
-}
-
-static void vTaskUserIF(void *pvParametres)
-{
-	uint8_t ucKeyCode;
-	uint8_t pcWriteBuffer[500];
-
-	while(1)
-	{
-		ucKeyCode = bsp_GetKey();
-
-		if(ucKeyCode != KEY_NONE)
-		{
-			switch (ucKeyCode)
-			{
-				case KEY_1_SHORTPRESS:
-					printf("=======================================\r\n");
-					printf("任务名   状态    优先级  剩余栈   任务序列\r\n");
-					vTaskList((char *)&pcWriteBuffer);
-					printf("%s\r\n",pcWriteBuffer);
-
-					printf("\r\n任务名   运行计算   使用率\r\n");
-					vTaskGetRunTimeStats((char *)&pcWriteBuffer);
-					printf("%s\r\n",pcWriteBuffer);
-					break;
-					
-				default :
-					break;
-			}
-		}
-	}
-}
-
-static void vTaskLED(void *pvParameters)
-{
-	TickType_t xLastWakeTime;
-	const TickType_t xFrequency = 1000;
-
-	//获取当前系统时间
-	xLastWakeTime = xTaskGetTickCount();
-
-	while(1)
-	{
-		LED_TOGGLE();
-
-		//vTaskDelayUntil为绝对延迟
-		vTaskDelayUntil(&xLastWakeTime,xFrequency);
-	}
-}
-
-static void vTaskStart(void *pvParametres)
-{
-	while(1)
-	{
-		//按键扫描
-		bsp_KeyScan();
-		//printf("hello world\r\n");
-		vTaskDelay(10);
-	}
-}
-
-static void AppTaskCreate(void)
-{
-	xTaskCreate(vTaskUserIF,
-				"vTaskUserIF",
-				512,
-				NULL,
-				1,
-				&xHandleTaskUserIF);
-
-	xTaskCreate(vTaskLED,
-				"vTaskLED",
-				512,
-				NULL,
-				2,
-				&xHandleTaskLED);
-	
-	xTaskCreate(vTaskStart,
-				"vTaskStart",
-				512,
-				NULL,
-				4,
-				&xHandleTaskStart);
-				
 }
 
 
-static void AppObjCreate(void)
-{
-	//创建互斥信号量
-	xMutex = xSemaphoreCreateMutex();
-
-	if(xMutex == NULL)
-	{
-		//创建失败，添加失败机制
-	}
-}
-
-/*
-***********************************************
-* 函数名：App_Printf
-* 功能说明：线程安全的printf方式
-***********************************************
-*/
-void App_Printf(char *format,  ...)
-{
-	char buf_str[200+1];
-	va_list v_args;
-
-	va_start(v_args,format);
-	(void)vsnprintf((char *)&buf_str[0],
-					(size_t)sizeof(buf_str),
-					(char const *)format,
-								  v_args);
-	va_end(v_args);
-	//互斥信号量
-	xSemaphoreTake(xMutex,portMAX_DELAY);
-
-	printf("%s",buf_str);
-
-	xSemaphoreGive(xMutex);
-		
-}
-#endif
 
 
+#if 0
  //未加FreeRTOS时候的测试历程
 #include "bsp.h"
 #include "ff.h"			/* FatFS文件系统模块*/
 uint8_t  g_ucTestWriteBuff[512] = "rrrdfdsasdfffffffasdfdasdfdasdfaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddddddddddddddddddddddd";
 uint8_t  g_ucTestReadBuff[512] = {0};
+
 
 
 /*
@@ -248,6 +86,8 @@ int main(void)
 	uint8_t 		sysclock = 0;
 	uint8_t 		ucKeyCode = 0;
 	uint8_t         ret = 0;
+
+	SystemCoreClockUpdate();
 	RCC_ClocksTypeDef clock_info;
 	sysclock			= RCC_GetSYSCLKSource();
 	RCC_GetClocksFreq(&clock_info);
@@ -307,5 +147,5 @@ int main(void)
 	}
 
 }
-
+#endif
 
